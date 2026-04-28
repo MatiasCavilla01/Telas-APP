@@ -1,9 +1,10 @@
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from rest_framework import status
-from .models import StoreConfiguration
-from .serializers import StoreConfigurationSerializer
+from rest_framework import status, viewsets
+
+from .models import Producto, StoreConfiguration, Categoria
+from .serializers import CategoriaSerializer, StoreConfigurationSerializer, ProductoSerializer
 
 # Ahora aceptamos GET (leer) y POST (guardar)
 @api_view(['GET', 'POST'])
@@ -32,3 +33,16 @@ def get_main_banner(request):
             
         # Si el cliente mandó un archivo corrupto, le avisamos
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class CategoriaViewSet(viewsets.ModelViewSet):
+    """
+    Este ViewSet proporciona automáticamente las acciones:
+    `list`, `create`, `retrieve`, `update` (PATCH) y `destroy` (DELETE).
+    """
+    queryset = Categoria.objects.all()
+    serializer_class = CategoriaSerializer
+
+class ProductoViewSet(viewsets.ModelViewSet):
+    queryset = Producto.objects.all()
+    serializer_class = ProductoSerializer
