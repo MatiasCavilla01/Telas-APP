@@ -16,6 +16,37 @@
     outline-offset: 2px;
   }
 }
+/* Esto elimina los espacios en blanco que el navegador pone por defecto */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden; /* Evita el scroll horizontal */
+}
+
+/* Forzamos que la Navbar ignore cualquier contenedor padre */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw; /* 100% del ancho de la ventana */
+    margin: 0;
+    padding: 0;
+    background: white;
+    z-index: 9999; /* Siempre arriba de todo */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.navbar-container {
+    width: 100%;
+    max-width: 1200px; /* El contenido se centra, pero la barra sigue al 100% */
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    box-sizing: border-box;
+}
 
 .hero {
   position: relative;

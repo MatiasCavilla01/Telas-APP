@@ -30,6 +30,7 @@ class Producto(models.Model):
         ('M', 'Medium'),
         ('L', 'Large'),
         ('XL', 'Extra Large'),
+        ('XXL', 'Double Extra Large'),
     ]
 
     categoria = models.ForeignKey(
@@ -41,7 +42,7 @@ class Producto(models.Model):
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     precio = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio")
     descripcion = models.TextField(verbose_name="Descripción")
-    talle = models.CharField(max_length=2, choices=TALLE_CHOICES, verbose_name="Talle")
+    talle = models.CharField(max_length=10, choices=TALLE_CHOICES, verbose_name="Talle")
     imagen = models.ImageField(upload_to='productos/', verbose_name="Imagen", blank=True, null=True)
 
     class Meta:

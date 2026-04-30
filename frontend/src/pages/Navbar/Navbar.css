@@ -1,0 +1,97 @@
+/* Navbar.css */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;   /* Fuerza el inicio al borde izquierdo */
+    right: 0;  /* Fuerza el fin al borde derecho */
+    width: 100%; 
+    height: 70px; /* Altura fija para controlar el espacio */
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+    z-index: 9999; /* Por encima de TODO */
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin: 0 !important; /* El !important mata cualquier margen heredado */
+}
+
+.navbar-container {
+    width: 100%;
+    max-width: 1200px; /* El contenido se centra, la barra no */
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2rem;
+    box-sizing: border-box;
+}
+
+/* IMPORTANTE: Agrega esto en tu index.css o App.css 
+   para que el contenido de la página no quede debajo de la Navbar */
+body {
+    padding-top: 70px; 
+}
+
+.navbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: #1f2937;
+    letter-spacing: -0.5px;
+}
+
+.navbar-logo span span {
+    color: #2563eb; /* El azul que usamos antes */
+}
+
+.navbar-links {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-link:hover {
+    color: #2563eb;
+}
+
+.navbar-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: #1f2937;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.3s;
+    position: relative;
+}
+
+.icon-btn:hover {
+    background: #f3f4f6;
+}
+
+.cart-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #ef4444;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 50%;
+    border: 2px solid white;
+}

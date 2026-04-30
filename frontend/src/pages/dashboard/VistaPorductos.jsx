@@ -20,7 +20,7 @@ const VistaProductos = () => {
   const [fetching,    setFetching]    = useState(true);
   const [editando,    setEditando]    = useState(null); 
 
-  const talles = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Único'];
+  const talles = ['S', 'M', 'L', 'XL', 'XXL',];
 
   const fetchData = async () => {
     setFetching(true);

@@ -10,16 +10,19 @@ import VistaCategorias from './pages/dashboard/VistaCategorias';
 import VistaDiseno from './pages/dashboard/VistaDiseno';
 import VistaStats from './pages/dashboard/VistaStats';
 import VistaPedidos from './pages/dashboard/VistaPedidos';
+import Home from './pages/Home/Home.jsx';
+import Carrito from './pages/Carrito/Carrito.jsx';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Redirigimos la raíz al dashboard por ahora */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/carrito" element={<Carrito />} />
 
         {/* Ruta Padre: Dashboard (Acá está el Sidebar y el Outlet) */}
-        <Route path="/dashboard" element={<Dashboard />}>
+        <Route path="/administrador" element={<Dashboard />}>
           <Route index element={<VistaInicio />} />
           <Route path="productos" element={<VistaProductos />} />
           <Route path="categorias" element={<VistaCategorias />} />
