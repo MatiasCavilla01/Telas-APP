@@ -2,22 +2,22 @@
 .navbar {
     position: fixed;
     top: 0;
-    left: 0;   /* Fuerza el inicio al borde izquierdo */
-    right: 0;  /* Fuerza el fin al borde derecho */
+    left: 0;
+    right: 0;
     width: 100%; 
-    height: 70px; /* Altura fija para controlar el espacio */
+    height: 70px;
     background-color: #ffffff;
     display: flex;
     align-items: center;
-    z-index: 9999; /* Por encima de TODO */
+    z-index: 9999;
     border-bottom: 1px solid #e5e7eb;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    margin: 0 !important; /* El !important mata cualquier margen heredado */
+    margin: 0 !important;
 }
 
 .navbar-container {
     width: 100%;
-    max-width: 1200px; /* El contenido se centra, la barra no */
+    max-width: 1200px;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -26,12 +26,11 @@
     box-sizing: border-box;
 }
 
-/* IMPORTANTE: Agrega esto en tu index.css o App.css 
-   para que el contenido de la página no quede debajo de la Navbar */
 body {
     padding-top: 70px; 
 }
 
+/* --- LOGO --- */
 .navbar-logo {
     display: flex;
     align-items: center;
@@ -40,31 +39,36 @@ body {
     font-size: 1.4rem;
     color: #1f2937;
     letter-spacing: -0.5px;
+    text-decoration: none;
 }
 
 .navbar-logo span span {
-    color: #2563eb; /* El azul que usamos antes */
+    color: #2563eb; 
 }
 
+/* --- LINKS ESCRITORIO --- */
 .navbar-links {
     display: flex;
     gap: 2rem;
+    align-items: center;
 }
 
 .nav-link {
     text-decoration: none;
     color: #4b5563;
-    font-weight: 500;
-    transition: color 0.3s;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: color 0.3s ease;
 }
 
 .nav-link:hover {
     color: #2563eb;
 }
 
+/* --- ACCIONES E ICONOS --- */
 .navbar-actions {
     display: flex;
-    gap: 1rem;
+    gap: 0.8rem;
     align-items: center;
 }
 
@@ -75,18 +79,21 @@ body {
     cursor: pointer;
     padding: 8px;
     border-radius: 50%;
-    transition: background 0.3s;
+    transition: background-color 0.3s ease;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .icon-btn:hover {
-    background: #f3f4f6;
+    background-color: #f3f4f6;
 }
 
 .cart-badge {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: -2px;
+    right: -2px;
     background: #ef4444;
     color: white;
     font-size: 11px;
@@ -94,4 +101,67 @@ body {
     padding: 2px 6px;
     border-radius: 50%;
     border: 2px solid white;
+}
+
+/* Botón hamburguesa oculto por defecto en PC */
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: #1f2937;
+    cursor: pointer;
+    padding: 4px;
+}
+
+/* =========================================
+   RESPONSIVE (CELULARES Y TABLETS CHICAS)
+========================================= */
+@media (max-width: 768px) {
+    .navbar-container {
+        padding: 0 1rem;
+    }
+
+    /* Mostramos el botón hamburguesa en la izquierda */
+    .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Hacemos que los links sean un menú desplegable */
+    .navbar-links {
+        position: absolute;
+        top: 70px; /* Justo debajo de la navbar */
+        left: 0;
+        width: 100%;
+        background-color: #ffffff;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        
+        /* Animación para que baje suave */
+        clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+        transition: clip-path 0.3s ease-in-out;
+    }
+
+    /* Clase que se activa con el useState en JSX */
+    .navbar-links.active {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    }
+
+    .nav-link {
+        width: 100%;
+        text-align: center;
+        padding: 1.2rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .nav-link:last-child {
+        border-bottom: none;
+    }
+
+    /* Reducimos un poco el gap de los íconos de la derecha para que no apriete */
+    .navbar-actions {
+        gap: 0.2rem;
+    }
 }

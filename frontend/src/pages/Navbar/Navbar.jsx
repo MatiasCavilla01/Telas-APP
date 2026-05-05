@@ -1,21 +1,39 @@
-import React from 'react';
-import { Link } from 'react-router-dom'; // Importante para navegar sin recargar
-import { ShoppingCart, Store, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom'; 
+import { ShoppingCart, Store, User, Menu, X } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = ({ cartCount = 0 }) => {
+    // Estado para controlar si el menú "sánguche" está abierto o cerrado
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const toggleMenu = () => {
+        setIsMenuOpen(!isMenuOpen);
+    };
+
+    // Función para cerrar el menú cuando tocan un link en el celu
+    const closeMenu = () => {
+        setIsMenuOpen(false);
+    };
+
     return (
         <nav className="navbar">
             <div className="navbar-container">
-                {/* Usamos Link en lugar de a */}
-                <Link to="/" className="navbar-logo" style={{ textDecoration: 'none' }}>
+                
+                {/* Botón Hamburguesa (Solo visible en móvil) */}
+                <button className="mobile-menu-btn" onClick={toggleMenu}>
+                    {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                </button>
+
+                <Link to="/" className="navbar-logo" onClick={closeMenu}>
                     <Store size={28} className="logo-icon" />
                     <span>TELAS<span>APP</span></span>
                 </Link>
 
-                <div className="navbar-links">
-                    <Link to="/" className="nav-link">Inicio</Link>
-                    <Link to="/productos" className="nav-link">Productos</Link>
+                {/* Contenedor de links: se le agrega la clase 'active' si el menú está abierto */}
+                <div className={`navbar-links ${isMenuOpen ? 'active' : ''}`}>
+                    <Link to="/" className="nav-link" onClick={closeMenu}>Inicio</Link>
+                    <Link to="/productos" className="nav-link" onClick={closeMenu}>Productos</Link>
                 </div>
 
                 <div className="navbar-actions">
@@ -23,7 +41,6 @@ const Navbar = ({ cartCount = 0 }) => {
                         <User size={22} />
                     </button>
                     
-                    {/* Botón del carrito ahora es un Link a la ruta /carrito */}
                     <Link to="/carrito" className="icon-btn cart-btn">
                         <ShoppingCart size={22} />
                         {cartCount > 0 && (

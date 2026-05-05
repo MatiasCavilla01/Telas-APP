@@ -12,6 +12,7 @@ import VistaStats from './pages/dashboard/VistaStats';
 import VistaPedidos from './pages/dashboard/VistaPedidos';
 import Home from './pages/Home/Home.jsx';
 import Carrito from './pages/Carrito/Carrito.jsx';
+import DetalleProducto from './pages/Detalle producto/Detalle_producto.jsx';
 
 function App() {
   return (
@@ -20,9 +21,9 @@ function App() {
         {/* Redirigimos la raíz al dashboard por ahora */}
         <Route path="/" element={<Home />} />
         <Route path="/carrito" element={<Carrito />} />
-
+        <Route path="/producto/:id" element={<DetalleProducto />} />
         {/* Ruta Padre: Dashboard (Acá está el Sidebar y el Outlet) */}
-        <Route path="/administrador" element={<Dashboard />}>
+        <Route path="/dashboard" element={<Dashboard />}>
           <Route index element={<VistaInicio />} />
           <Route path="productos" element={<VistaProductos />} />
           <Route path="categorias" element={<VistaCategorias />} />

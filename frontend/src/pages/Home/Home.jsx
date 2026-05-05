@@ -3,6 +3,7 @@ import axios from 'axios';
 import './Home.css'; // Asegúrate de crear este archivo para los estilos
 import { ShoppingCart } from 'lucide-react';
 import Navbar from '../Navbar/Navbar.jsx';
+import { useNavigate} from 'react-router-dom';
 
 const Home = () => {
     const [productos, setProductos] = useState([]);
@@ -14,6 +15,8 @@ const Home = () => {
         const savedCart = localStorage.getItem('cart');
         return savedCart ? JSON.parse(savedCart) : [];
     });
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         localStorage.setItem('cart', JSON.stringify(cart));
@@ -77,7 +80,7 @@ const Home = () => {
 
                 <main className="products-grid">
                     {productos.map(prod => (
-                        <div key={prod.id} className="product-card">
+                        <div key={prod.id} className="product-card" onClick={() => navigate(`/producto/${prod.id}`)} style={{ cursor: 'pointer' }} >
                             <div className="product-image-container">
                                 <img 
                                     src={prod.imagen || 'https://via.placeholder.com/300'} 
@@ -92,9 +95,11 @@ const Home = () => {
                                 <div className="product-footer">
                                     <span className="product-price">${Number(prod.precio).toLocaleString('es-AR')}</span>
                                     <div className="product-actions">
-                                        <button className="btn-detail" onClick={() => agregarAlCarrito(prod)}>
-                                            Comprar
-                                        </button>
+                                        <button 
+                                        className="btn-detail" 
+                                            onClick={(e) => { 
+                                                      e.stopPropagation(); 
+                                                    agregarAlCarrito(prod);}}> Comprar</button>
                                     </div>
                                 </div>
                             </div>
