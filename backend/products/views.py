@@ -3,8 +3,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 
-from .models import Producto, StoreConfiguration, Categoria
-from .serializers import CategoriaSerializer, StoreConfigurationSerializer, ProductoSerializer
+from .models import Producto, StoreConfiguration, Categoria, ProductoImagen
+from .serializers import CategoriaSerializer, StoreConfigurationSerializer, ProductoSerializer, ProductoImagenSerializer
 
 # Ahora aceptamos GET (leer) y POST (guardar)
 @api_view(['GET', 'POST'])
@@ -43,6 +43,41 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
 
+
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
+
+    def create(self, request, *args, **kwargs):
+        # 1. Creamos el producto base con los datos estándar
+        response = super().create(request, *args, **kwargs)
+        producto = Producto.objects.get(id=response.data['id'])
+        
+        # 2. Guardamos las imágenes extra de la galería
+        self._guardar_imagenes_galeria(request, producto)
+        return response
+
+    def update(self, request, *args, **kwargs):
+        producto_id = kwargs.get('pk')
+
+        # 1. Eliminar las imágenes que el usuario quitó en el frontend
+        imagenes_a_eliminar = request.data.getlist('eliminar_imagenes')
+        
+        if imagenes_a_eliminar:
+            # Borramos las imágenes de la base de datos (esto también borra el archivo físico gracias al cascade)
+            ProductoImagen.objects.filter(id__in=imagenes_a_eliminar, producto_id=producto_id).delete()
+
+        # 2. Actualizar el producto base (nombre, precio, etc.)
+        response = super().update(request, *args, **kwargs)
+        producto = self.get_object()
+
+        # 3. Guardar las NUEVAS imágenes extra que se hayan agregado
+        self._guardar_imagenes_galeria(request, producto)
+        
+        return response
+
+    def _guardar_imagenes_galeria(self, request, producto):
+        """Función auxiliar para buscar y guardar archivos 'imagen_extra_X'"""
+        for key, file in request.FILES.items():
+            if key.startswith('imagen_extra_'):
+                ProductoImagen.objects.create(producto=producto, imagen=file)

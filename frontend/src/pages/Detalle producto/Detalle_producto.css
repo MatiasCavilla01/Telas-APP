@@ -1,80 +1,126 @@
+/* Importamos fuentes elegantes para un look de boutique */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
 /* ===== DETALLE PRODUCTO PAGE ===== */
 .detalle-page {
     min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background-color: #FDFCFB;
     padding: 2rem 1rem;
     margin-top: 70px;
+    font-family: 'Montserrat', sans-serif;
+    color: #333333;
 }
 
 .detalle-container {
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 0 auto;
-    background-color: white;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background-color: #FFFFFF;
+    border-radius: 4px;
+    padding: 3rem 4rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04); /* Sombra más amplia y suave */
 }
 
 /* ===== BOTÓN VOLVER ===== */
 .back-button {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background-color: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    color: #374151;
-    transition: all 0.3s ease;
-    margin-bottom: 2rem;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: color 0.3s ease, transform 0.3s ease;
+    margin-bottom: 2.5rem;
 }
 
 .back-button:hover {
-    background-color: #e5e7eb;
+    color: #1A1A1A;
     transform: translateX(-4px);
-}
-
-.back-button:active {
-    transform: scale(0.98);
 }
 
 /* ===== GRID LAYOUT ===== */
 .detalle-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
+    grid-template-columns: 1.2fr 1fr; /* Le damos un poco más de espacio a la foto */
+    gap: 4rem;
     align-items: start;
 }
 
-/* ===== IMAGEN CONTAINER ===== */
+/* ===== GALERÍA Y FOTO PRINCIPAL ===== */
+.detalle-galeria-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: sticky;
+    top: 100px; /* Mantiene el efecto sticky en PC */
+}
+
 .detalle-imagen-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #f9fafb;
-    border-radius: 12px;
-    padding: 2rem;
-    height: fit-content;
-    position: sticky;
-    top: 90px;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+    background-color: #F8F8F8;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 600px; /* Altura fija para PC */
+    width: 100%;
 }
 
 .detalle-imagen {
     width: 100%;
-    max-width: 500px;
-    height: auto;
-    border-radius: 8px;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    object-fit: cover; /* Evita que la foto se estire, recorta los bordes si es necesario */
+    object-position: center top; /* Centra la foto hacia arriba (ideal para ropa) */
+    transition: transform 0.6s ease;
 }
 
-.detalle-imagen:hover {
-    transform: scale(1.02);
+.detalle-imagen-container:hover .detalle-imagen {
+    transform: scale(1.04);
+}
+
+/* ===== MINIATURAS ===== */
+.detalle-miniaturas {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: #DDDDDD transparent;
+}
+
+.detalle-miniaturas::-webkit-scrollbar {
+    height: 4px;
+}
+
+.detalle-miniaturas::-webkit-scrollbar-thumb {
+    background-color: #DDDDDD;
+    border-radius: 4px;
+}
+
+.miniatura-img {
+    width: 70px;
+    height: 90px;
+    object-fit: cover;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    border-radius: 2px;
+}
+
+.miniatura-img:hover {
+    opacity: 0.8;
+}
+
+.miniatura-img.activa {
+    opacity: 1;
+    border: 1px solid #1A1A1A;
+    padding: 2px; /* Efecto marco de foto elegante */
 }
 
 /* ===== INFORMACIÓN DEL PRODUCTO ===== */
@@ -82,34 +128,33 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    padding-top: 1rem;
 }
 
 .detalle-categoria {
     display: inline-block;
-    background-color: #dbeafe;
-    color: #1e40af;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    color: #A0A0A0;
+    font-size: 0.75rem;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    width: fit-content;
+    letter-spacing: 2px;
 }
 
 .detalle-titulo {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #1f2937;
-    line-height: 1.2;
+    font-family: 'Playfair Display', serif;
+    font-size: 2.8rem;
+    font-weight: 600;
+    color: #1A1A1A;
+    line-height: 1.1;
     margin: 0;
 }
 
 .detalle-precio {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #10b981;
+    font-size: 1.8rem;
+    font-weight: 400;
+    color: #1A1A1A;
     margin: 0;
+    font-family: 'Playfair Display', serif;
 }
 
 /* ===== TALLE ===== */
@@ -117,42 +162,43 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background-color: #f3f4f6;
-    padding: 1rem;
-    border-radius: 8px;
-    font-size: 1rem;
-    color: #374151;
+    padding: 1.2rem 0;
+    border-top: 1px solid #F0F0F0;
+    border-bottom: 1px solid #F0F0F0;
+    font-size: 0.95rem;
+    color: #333333;
 }
 
 .detalle-talle svg {
-    color: #2563eb;
+    color: #1A1A1A;
+    stroke-width: 1.5;
 }
 
 .detalle-talle strong {
-    color: #1f2937;
-    font-weight: 700;
+    font-weight: 600;
+    margin-left: 0.25rem;
 }
 
 /* ===== DESCRIPCIÓN ===== */
 .detalle-descripcion {
-    background-color: #f9fafb;
-    padding: 1.5rem;
-    border-radius: 8px;
-    border-left: 4px solid #2563eb;
+    padding: 0.5rem 0;
 }
 
 .detalle-descripcion h3 {
-    margin: 0 0 0.75rem 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #1f2937;
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1A1A1A;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
 }
 
 .detalle-descripcion p {
     margin: 0;
     font-size: 0.95rem;
-    line-height: 1.6;
-    color: #4b5563;
+    line-height: 1.8;
+    color: #666666;
+    font-weight: 300;
 }
 
 /* ===== BOTÓN AGREGAR CARRITO ===== */
@@ -162,75 +208,57 @@
     justify-content: center;
     gap: 0.75rem;
     width: 100%;
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.05rem;
-    font-weight: 700;
+    padding: 1.2rem 2rem;
+    background-color: #1A1A1A;
+    color: #FFFFFF;
+    border: 1px solid #1A1A1A;
+    border-radius: 0px; /* Bordes rectos para diseño editorial/boutique */
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 2px;
+    margin-top: 1.5rem;
 }
 
 .btn-agregar-carrito:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-}
-
-.btn-agregar-carrito:active {
-    transform: scale(0.98);
+    background-color: #FFFFFF;
+    color: #1A1A1A;
 }
 
 /* ===== LOADING & ERROR ===== */
-.loader-container {
+.loader-container, .error-message {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    margin-top: 70px;
-}
-
-.loader {
-    width: 50px;
-    height: 50px;
-    border: 4px solid #e5e7eb;
-    border-top: 4px solid #2563eb;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.error-message {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    font-size: 1.2rem;
-    color: #dc2626;
-    font-weight: 600;
-    margin-top: 70px;
-    padding: 2rem;
-    text-align: center;
+    min-height: 80vh;
+    background-color: #FDFCFB;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 992px) {
+    .detalle-container {
+        padding: 2rem;
+    }
+    .detalle-grid {
+        gap: 2.5rem;
+    }
+    .detalle-titulo {
+        font-size: 2.2rem;
+    }
+}
+
 @media (max-width: 768px) {
     .detalle-page {
         padding: 1rem;
+        margin-top: 60px;
     }
-
+    
     .detalle-container {
-        padding: 1.5rem;
+        padding: 1.5rem 1rem;
+        box-shadow: none; /* Quitamos sombra en celular para que parezca app nativa */
     }
 
     .detalle-grid {
@@ -238,9 +266,19 @@
         gap: 2rem;
     }
 
+    /* SOLUCIÓN AL PROBLEMA DE SUPERPOSICIÓN EN CELULARES */
+    .detalle-galeria-wrapper {
+        position: relative; /* Quitamos el sticky para que no rompa el diseño */
+        top: 0;
+    }
+
     .detalle-imagen-container {
-        position: static;
-        padding: 1rem;
+        height: 500px; /* Límite de altura en celular para que no ocupe toda la pantalla */
+    }
+
+    .detalle-info {
+        padding-top: 0;
+        gap: 1.2rem;
     }
 
     .detalle-titulo {
@@ -251,41 +289,13 @@
         font-size: 1.5rem;
     }
 
-    .detalle-info {
-        gap: 1rem;
-    }
-
     .btn-agregar-carrito {
-        padding: 0.85rem 1.5rem;
-        font-size: 0.95rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .detalle-container {
         padding: 1rem;
-        border-radius: 8px;
+        margin-top: 0.5rem;
     }
-
-    .detalle-titulo {
-        font-size: 1.5rem;
-    }
-
-    .detalle-precio {
-        font-size: 1.25rem;
-    }
-
-    .detalle-categoria {
-        font-size: 0.75rem;
-        padding: 0.4rem 0.8rem;
-    }
-
-    .back-button {
-        padding: 0.6rem 1rem;
-        font-size: 0.9rem;
-    }
-
-    .detalle-grid {
-        gap: 1.5rem;
+    
+    .miniatura-img {
+        width: 60px;
+        height: 80px;
     }
 }

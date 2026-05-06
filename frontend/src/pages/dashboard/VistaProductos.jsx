@@ -19,6 +19,8 @@ const VistaProductos = () => {
   const [categorias,  setCategorias]  = useState([]);
   const [fetching,    setFetching]    = useState(true);
   const [editando,    setEditando]    = useState(null); 
+  // NUEVO ESTADO: Para recordar qué imágenes de la galería venían del backend
+  const [imagenesOriginales, setImagenesOriginales] = useState([]); 
 
   const talles = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Único'];
 
@@ -50,7 +52,27 @@ const VistaProductos = () => {
       talle: prod.talle,
       categoria: prod.categoria || ''
     });
-    setImages([]); 
+
+    // 1. CARGAR IMÁGENES EXISTENTES PARA LA VISTA PREVIA
+    const imagenesCargadas = [];
+    const idsOriginales = [];
+
+    // Agregar la imagen principal si existe
+    if (prod.imagen) {
+      imagenesCargadas.push({ preview: prod.imagen, id: 'main', file: null }); // file es null porque ya está en el servidor
+    }
+
+    // Agregar las imágenes de la galería si existen
+    if (prod.imagenes_galeria && Array.isArray(prod.imagenes_galeria)) {
+      prod.imagenes_galeria.forEach((imgObj) => {
+        imagenesCargadas.push({ preview: imgObj.imagen, id: imgObj.id, file: null });
+        idsOriginales.push(imgObj.id); // Guardamos el ID original
+      });
+    }
+
+    setImagenesOriginales(idsOriginales); // Guardamos la lista en el estado
+    setImages(imagenesCargadas); // Cargamos las imágenes existentes
+    
     setShowForm(true);
     setStatusMsg('');
   };
@@ -59,6 +81,7 @@ const VistaProductos = () => {
     setShowForm(false);
     setForm({ nombre: '', precio: '', descripcion: '', talle: '', categoria: '' });
     setImages([]);
+    setImagenesOriginales([]); // Reseteamos la lista de originales
     setEditando(null);
     setStatusMsg('');
   };
@@ -77,9 +100,26 @@ const VistaProductos = () => {
       formData.append('descripcion', form.descripcion);
       if (form.categoria) formData.append('categoria', form.categoria);
       
+      // 1. Enviar archivos nuevos
       images.forEach((img, i) => {
-        if (img.file) formData.append(i === 0 ? 'imagen' : `imagen_extra_${i}`, img.file);
+        if (img.file) {
+           formData.append(i === 0 ? 'imagen' : `imagen_extra_${i}`, img.file);
+        }
       });
+
+      // 2. Lógica de eliminación (SOLO si estamos editando)
+      if (editando) {
+        // Obtenemos los IDs de las imágenes de galería que AÚN están en el array visual
+        const idsActuales = images.map(img => img.id).filter(id => id && id !== 'main');
+        
+        // Filtramos cuáles de las originales ya no están
+        const idsEliminados = imagenesOriginales.filter(id => !idsActuales.includes(id));
+        
+        // Las agregamos al FormData para que el backend las borre
+        idsEliminados.forEach(id => {
+          formData.append('eliminar_imagenes', id);
+        });
+      }
 
       if (editando) {
         await axios.patch(`${API}/productos/${editando}/`, formData, {

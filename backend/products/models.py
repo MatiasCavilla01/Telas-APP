@@ -22,9 +22,7 @@ class Categoria(models.Model):
     def __str__(self):
         return self.nombre
 
-
 class Producto(models.Model):
-
     TALLE_CHOICES = [
         ('S', 'Small'),
         ('M', 'Medium'),
@@ -43,7 +41,8 @@ class Producto(models.Model):
     precio = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio")
     descripcion = models.TextField(verbose_name="Descripción")
     talle = models.CharField(max_length=10, choices=TALLE_CHOICES, verbose_name="Talle")
-    imagen = models.ImageField(upload_to='productos/', verbose_name="Imagen", blank=True, null=True)
+    # Esta queda como imagen de portada para el catálogo
+    imagen = models.ImageField(upload_to='productos/', verbose_name="Imagen Principal", blank=True, null=True)
 
     class Meta:
         verbose_name = "Producto"
@@ -52,3 +51,19 @@ class Producto(models.Model):
 
     def __str__(self):
         return f"{self.nombre} - Talle {self.talle}"
+
+# --- NUEVO MODELO PARA LA GALERÍA ---
+class ProductoImagen(models.Model):
+    producto = models.ForeignKey(
+        Producto, 
+        on_delete=models.CASCADE, 
+        related_name='imagenes_galeria' # Este nombre es clave para el serializador
+    )
+    imagen = models.ImageField(upload_to='productos/galeria/', verbose_name="Imagen de Galería")
+
+    class Meta:
+        verbose_name = "Imagen de Producto"
+        verbose_name_plural = "Imágenes de Producto"
+
+    def __str__(self):
+        return f"Imagen galería de {self.producto.nombre}"
