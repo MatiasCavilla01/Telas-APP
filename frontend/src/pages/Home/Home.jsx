@@ -51,9 +51,10 @@ const Home = () => {
         const fetchData = async () => {
             try {
                 const [resProductos, resCategorias, resBanner] = await Promise.all([
-                    axios.get('http://127.0.0.1:8000/api/productos/'),
-                    axios.get('http://127.0.0.1:8000/api/categorias/'),
-                    axios.get('http://127.0.0.1:8000/api/banner/'),
+                    axios.get(import.meta.env.VITE_API_URL + '/api/productos/'),
+                    axios.get(import.meta.env.VITE_API_URL + '/api/categorias/'),
+                    axios.get(import.meta.env.VITE_API_URL + '/api/banner/')
+                    
                 ]);
                 setProductos(resProductos.data);
                 setCategorias(resCategorias.data);
@@ -98,34 +99,35 @@ const Home = () => {
         }
     }, [heroImages.length]);
 
-    // --- LÓGICA DEL CARRUSEL AUTOMÁTICO DE FAVORITAS ---
+  // --- LÓGICA DEL CARRUSEL DE FAVORITAS (POR INTERVALOS) ---
     const productosFavoritos = productos.filter(p => p.es_favorito);
     const sliderFavoritasRef = useRef(null);
 
     useEffect(() => {
         const slider = sliderFavoritasRef.current;
-        let animationId;
+        let intervalId;
         
-        // Solo animamos si hay favoritas marcadas
         if (slider && productosFavoritos.length > 0) {
-            const scroll = () => {
-                if (slider) {
-                    slider.scrollLeft += 1; // Velocidad del deslizamiento
-                    // Bucle infinito: si llega al final, vuelve al inicio sutilmente
-                    if (slider.scrollLeft >= (slider.scrollWidth - slider.clientWidth)) {
-                        slider.scrollLeft = 0; 
+            const iniciarIntervalo = () => {
+                intervalId = setInterval(() => {
+                    const scrollAmount = 280; // Ancho de la tarjeta + espacio
+                    if (slider.scrollLeft + slider.clientWidth >= slider.scrollWidth - 10) {
+                        slider.scrollTo({ left: 0, behavior: 'smooth' }); // Vuelve al inicio suavemente
+                    } else {
+                        slider.scrollBy({ left: scrollAmount, behavior: 'smooth' }); // Avanza una tarjeta
                     }
-                }
-                animationId = requestAnimationFrame(scroll);
+                }, 3500); // Se mueve cada 3.5 segundos
             };
+
+            iniciarIntervalo();
             
-            animationId = requestAnimationFrame(scroll);
-            
-            // Pausar al poner el mouse encima para poder hacer clic cómodamente
-            slider.addEventListener('mouseenter', () => cancelAnimationFrame(animationId));
-            slider.addEventListener('mouseleave', () => animationId = requestAnimationFrame(scroll));
+            // Pausar si el cliente pone el mouse encima o toca en el celular
+            slider.addEventListener('mouseenter', () => clearInterval(intervalId));
+            slider.addEventListener('touchstart', () => clearInterval(intervalId));
+            slider.addEventListener('mouseleave', iniciarIntervalo);
+            slider.addEventListener('touchend', iniciarIntervalo);
         }
-        return () => cancelAnimationFrame(animationId);
+        return () => clearInterval(intervalId);
     }, [productosFavoritos.length]);
 
     return (
@@ -170,48 +172,49 @@ const Home = () => {
 
             <div className="home-container">
 
-                {/* ── CATEGORÍAS ── */}
-                <section className="category-section reveal-section" ref={revealRef}>
-                    <div className="section-header">
-                        <h2 className="section-title">Nuestras Telas</h2>
-                        <div className="section-line" />
-                    </div>
+               {/* ── CATEGORÍAS ── */}
+               {/* ── CATEGORÍAS ── */}
+<section className="category-section reveal-section" ref={revealRef}>
+    {/* Título centrado y en cursiva */}
+    <div className="category-header-centered">
+        <h2>Categorías</h2>
+    </div>
 
-                    <div className="category-explorer">
-                        {loading
-                            ? [1, 2, 3, 4].map((n) => (
-                                  <div key={n} className="category-card-item">
-                                      <div className="category-rect skeleton-rect" />
-                                      <div className="skeleton-text-small" />
-                                  </div>
-                              ))
-                            : categorias.map((cat) => (
-                                  <div
-                                      key={cat.id}
-                                      className="category-card-item"
-                                      onClick={() => navigate('/productos')} // Redirige al catálogo completo
-                                  >
-                                      <div
-                                          className="category-rect"
-                                          style={{
-                                              backgroundImage: `url(${cat.imagen || 'https://via.placeholder.com/150'})`,
-                                          }}
-                                      />
-                                      <span className="category-name">{cat.nombre}</span>
-                                  </div>
-                              ))}
-                    </div>
-                </section>
+    {/* Cambiamos 'category-explorer' por 'category-grid' */}
+    <div className="category-grid">
+        {/* Cambiamos la condición acá */}
+        {categorias.length === 0
+            ? [1, 2, 3, 4, 5, 6].map((n) => (
+                  <div key={n} className="category-card-item">
+                      <div className="category-rect skeleton-rect" />
+                  </div>
+              ))
+            : categorias.map((cat) => (
+                  <div
+                      key={cat.id}
+                      className="category-card-item"
+                      onClick={() => navigate('/productos')}
+                  >
+                      <div
+                          className="category-rect"
+                          style={{
+                              backgroundImage: `url(${cat.imagen || 'https://via.placeholder.com/600x300'})`,
+                          }}
+                      >
+                          <span className="category-name">{cat.nombre}</span>
+                      </div>
+                  </div>
+              ))}
+    </div>
+</section>
 
-                {/* ── SECCIÓN PROMOCIONAL ── */}
+               {/* ── SECCIÓN PROMOCIONAL (DISEÑO A MEDIDA) ── */}
                 <section className="promo-section reveal-section" ref={revealRef}>
                     <div className="promo-content">
-                        <span className="promo-eyebrow">Destacado</span>
-                        <h2>Nuevos Arrivals de Temporada</h2>
-                        <p>Descubrí nuestra última selección de telas importadas. Lino, seda, algodón pima y más — todo con la calidad que nos distingue.</p>
-                        <button className="promo-btn" onClick={() => navigate('/productos')}>
-                            Explorar ahora
-                        </button>
+                       {/* <span className="promo-eyebrow">Confección a medida</span>*/}
+                        <h2>Diseños a medida</h2>
+                        <p>Diseña el vestido de que desees con los mejores estilos y la atención personalizada que nos caracteriza.</p>
+                        
                     </div>
                     <div
                         className="promo-image"
@@ -225,39 +228,51 @@ const Home = () => {
                 </section>
 
                 {/* ── SECCIÓN FAVORITAS ── */}
-                <section className="favoritas-section reveal-section" ref={revealRef}>
-                    <div className="section-header">
-                        <h2 className="section-title">FAVORITAS</h2>
-                        <div className="section-line" />
-                    </div>
+<section className="favoritas-section reveal-section" ref={revealRef}>
+    <div className="category-header-centered">
+        <h2 className="section-title">Nuestras Favoritas</h2>
+       
+    </div>
 
-                    {productosFavoritos.length === 0 ? (
-                        <div className="empty-state">
-                            <span className="empty-icon">⭐</span>
-                            <p>Aún no hay telas destacadas. Se mostrarán aquí cuando las marques como favoritas.</p>
+    {productosFavoritos.length === 0 ? (
+        <div className="empty-state">
+            <span className="empty-icon">⭐</span>
+            <p>Aún no hay telas destacadas. Se mostrarán aquí cuando las marques como favoritas.</p>
+        </div>
+    ) : (
+        <div className="favoritas-slider" ref={sliderFavoritasRef}>
+            {[...productosFavoritos, ...productosFavoritos, ...productosFavoritos, ...productosFavoritos].map((prod, index) => (
+                <div 
+                    key={`${prod.id}-${index}`} 
+                    className="favorita-card"
+                    onClick={() => navigate(`/producto/${prod.id}`)}
+                >
+                    <div className="favorita-img-wrapper">
+                        {/* Etiqueta flotante sobre la imagen */}
+                        
+                        <img 
+                            src={prod.imagen || 'https://via.placeholder.com/300x400'} 
+                            alt={prod.nombre} 
+                            loading="lazy" 
+                        />
+                    </div>
+                    <div className="favorita-info">
+                        {/* Etiquetas de especificaciones (Ancho, Peso, etc.) */}
+                        <div className="favorita-specs">
+                            <span className="spec-badge">Ancho: {prod.ancho || '1.50 m'}</span>
+                            {prod.peso && <span className="spec-badge">Peso: {prod.peso}</span>}
                         </div>
-                    ) : (
-                        <div className="favoritas-slider" ref={sliderFavoritasRef}>
-                            {[...productosFavoritos, ...productosFavoritos, ...productosFavoritos, ...productosFavoritos].map((prod, index) => (
-                                <div 
-                                    key={`${prod.id}-${index}`} 
-                                    className="favorita-card"
-                                    onClick={() => navigate(`/producto/${prod.id}`)}
-                                >
-                                    <img 
-                                        src={prod.imagen || 'https://via.placeholder.com/200'} 
-                                        alt={prod.nombre} 
-                                        loading="lazy" 
-                                    />
-                                    <div className="favorita-info">
-                                        <h4>{prod.nombre}</h4>
-                                        <p>${Number(prod.precio_por_metro).toLocaleString('es-AR')}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
+                        
+                        <h4>{prod.nombre}</h4>
+                        <p className="favorita-precio">
+    ${Number(prod.precio_por_metro || prod.precio).toLocaleString('es-AR')} <span className="precio-unidad">cada/metro</span>
+</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+    )}
+</section>
 
                 {/* ── SECCIÓN REDES SOCIALES (ESTILO LIBRAFEMME) ── */}
                 {banner?.instagram && (() => {
@@ -289,8 +304,30 @@ const Home = () => {
                                 <span>{displayHandle.toUpperCase()}</span>
                             </a>
                         </section>
+
+                        
                     );
                 })()}
+
+                {/* 👇 AGREGÁ ESTA NUEVA SECCIÓN ACÁ 👇 */}
+                {/* ── SECCIÓN TALLER / LOCAL ── */}
+                <section className="taller-section reveal-section" ref={revealRef}>
+                    <div className="taller-card">
+                        <div 
+                            className="taller-image" 
+                            style={{ 
+                                backgroundImage: `url(${
+                                    banner?.imagen_secundaria_2 || 
+                                    'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=1974'
+                                })` 
+                            }}
+                        />
+                        <div className="taller-content">
+                            <h2>Vení a conocer nuestro taller de diseño y costura</h2>
+                            <p>Un espacio pensado para inspirarte. Descubrí de cerca la calidad de nuestras telas y recibí asesoramiento personalizado para tus creaciones.</p>
+                        </div>
+                    </div>
+                </section>
 
             </div>
         </div>
