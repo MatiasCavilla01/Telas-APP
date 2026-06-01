@@ -634,7 +634,7 @@ def generar_etiqueta_envio_view(request, pedido_id):
         return Response({"error": "Falta el Token de Envia.com en el panel."}, status=status.HTTP_400_BAD_REQUEST)
 
     # 3. Armamos el Payload AUTOMÁTICO leyendo el pedido
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/generate"
     
     headers = {

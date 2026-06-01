@@ -30,7 +30,7 @@ def calcular_costo_envio(codigo_postal_destino):
 
     # 3. Preparar la petición a la API de Envia.com
     # Usamos la variable de entorno, o por defecto la de pruebas si no la encuentra.
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/rate"
     
     headers = {
