@@ -147,6 +147,10 @@ const Dashboard = () => {
           </button>
           
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', margin: '24px 0 8px 16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Gestión</div>
+          {/* 👇 NUEVO BOTÓN: VENTAS EN LOCAL 👇 */}
+          <button style={getLinkStyle('/dashboard/ventas-local')} onClick={() => navigate('/dashboard/venta-local')}>
+            <Icon d={icons.orders} size={18} color={isActive('/dashboard/venta-local') ? '#6366f1' : '#94a3b8'} /> Ventas en Local
+          </button>
           <button style={getLinkStyle('/dashboard/productos')} onClick={() => navigate('/dashboard/productos')}>
             <Icon d={icons.package} size={18} color={isActive('/dashboard/productos') ? '#6366f1' : '#94a3b8'} /> Productos & Stock
           </button>

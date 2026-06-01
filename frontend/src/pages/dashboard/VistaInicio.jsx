@@ -12,7 +12,7 @@ const API = import.meta.env.VITE_API_URL + '/api';
 
 const VistaInicio = () => {
   const [stats, setStats] = useState({ productos: 0, pedidos: 0, ventas: 0 });
-  const navigate = useNavigate(); // Reemplaza la vieja función setActive
+  const navigate = useNavigate(); 
 
   useEffect(() => {
     axios.get(`${API}/productos/`).then(res => {
@@ -33,7 +33,15 @@ const VistaInicio = () => {
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
           <span style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>Tareas para empezar</span>
         </div>
-        <CheckItem done label="Crear tienda" desc="¡Tu tienda está publicada!" icon="home" />
+        
+        {/* 👇 ACÁ REEMPLAZAMOS "Crear tienda" POR EL ACCESO A VENTAS LOCALES 👇 */}
+        <CheckItem 
+            label="Registrar venta en local" 
+            desc="Facturar y descontar stock del mostrador" 
+            icon="home" 
+            onClick={() => navigate('/dashboard/venta-local')} 
+        />
+        
         <CheckItem label="Agregar productos" desc="Cargá tu catálogo de productos con precio y talle" icon="products" onClick={() => navigate('/dashboard/productos')} />
         <CheckItem label="Crear categorías" desc="Organizá tus productos por categoría" icon="category" onClick={() => navigate('/dashboard/categorias')} />
         <CheckItem label="Personalizar diseño" desc="Cambiá el banner principal de tu tienda" icon="design" onClick={() => navigate('/dashboard/diseno')} />

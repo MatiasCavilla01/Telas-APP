@@ -7,7 +7,6 @@ const VentasLocal = () => {
     const [busqueda, setBusqueda] = useState('');
     const [cargando, setCargando] = useState(true);
     
-    // Formulario de venta
     const [productoSeleccionado, setProductoSeleccionado] = useState(null);
     const [metros, setMetros] = useState('');
     const [precioCobrado, setPrecioCobrado] = useState('');
@@ -17,7 +16,6 @@ const VentasLocal = () => {
         axios.get('https://ignaciozurbriggen.pythonanywhere.com/api/productos/')
             .then((res) => {
                 let dataExtraida = [];
-                
                 if (Array.isArray(res.data)) {
                     dataExtraida = res.data; 
                 } else if (res.data && Array.isArray(res.data.results)) {
@@ -32,13 +30,12 @@ const VentasLocal = () => {
                         }
                     }
                 }
-
                 setProductos(dataExtraida);
                 setCargando(false);
             })
             .catch(err => {
                 console.error("❌ Error cargando telas:", err);
-                setMensaje({ tipo: 'error', texto: 'Error de conexión.' });
+                setMensaje({ tipo: 'error', texto: 'Error de conexión con el servidor.' });
                 setCargando(false);
             });
     }, []);
@@ -51,7 +48,7 @@ const VentasLocal = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!productoSeleccionado || !metros || !precioCobrado) {
-            setMensaje({ tipo: 'error', texto: 'Completa los metros y el monto.' });
+            setMensaje({ tipo: 'error', texto: 'Por favor, completa los metros y el monto.' });
             return;
         }
 
@@ -62,7 +59,7 @@ const VentasLocal = () => {
                 precio_cobrado: precioCobrado
             });
             
-            setMensaje({ tipo: 'success', texto: '✅ Venta registrada y stock actualizado.' });
+            setMensaje({ tipo: 'success', texto: 'Venta registrada y stock actualizado.' });
             
             setProductos(productos.map(p => 
                 p.id === productoSeleccionado.id 
@@ -86,11 +83,11 @@ const VentasLocal = () => {
 
     return (
         <div className="ventas-container">
-            <h2 className="ventas-header">🛍️ Mostrador: Ventas en Local</h2>
+            <h2 className="ventas-header">Ventas en Local</h2>
 
             {mensaje.texto && (
                 <div className={`alert ${mensaje.tipo === 'success' ? 'alert-success' : 'alert-error'}`}>
-                    {mensaje.texto}
+                    {mensaje.tipo === 'success' ? '✅' : '⚠️'} {mensaje.texto}
                 </div>
             )}
 
@@ -98,12 +95,12 @@ const VentasLocal = () => {
                 
                 {/* --- PANEL IZQUIERDO: BUSCADOR --- */}
                 <div className="ventas-card">
-                    <h3 className="ventas-card-title">1. Buscar Tela <span style={{ fontSize: '0.8rem', opacity: 0.6, fontWeight: 'normal', textTransform: 'lowercase' }}>({productos.length} en sistema)</span></h3>
+                    <h3 className="ventas-card-title">1. Inventario ({productos.length})</h3>
                     
                     <input 
                         type="text" 
                         className="input-moderno"
-                        placeholder="Ej: Gamuza, Seda..." 
+                        placeholder="Buscar por nombre de tela..." 
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                         autoFocus
@@ -111,7 +108,7 @@ const VentasLocal = () => {
 
                     <div className="lista-productos">
                         {cargando ? (
-                            <p style={{ opacity: 0.5, textAlign: 'center' }}>Cargando inventario...</p>
+                            <p style={{ color: '#94a3b8', textAlign: 'center', marginTop: '20px' }}>Cargando inventario...</p>
                         ) : productosFiltrados.length > 0 ? (
                             productosFiltrados.map(p => (
                                 <div 
@@ -120,9 +117,8 @@ const VentasLocal = () => {
                                     onClick={() => setProductoSeleccionado(p)}
                                 >
                                     <div className="producto-item-left">
-                                        {/* Renderizado de la imagen de la tela */}
                                         <img 
-                                            src={p.imagen || 'https://via.placeholder.com/48?text=Tela'} 
+                                            src={p.imagen || 'https://via.placeholder.com/60?text=Tela'} 
                                             alt={p.nombre || 'Tela'} 
                                             className="producto-thumb"
                                         />
@@ -137,10 +133,8 @@ const VentasLocal = () => {
                                 </div>
                             ))
                         ) : (
-                            <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '20px' }}>
-                                {productos.length === 0 
-                                    ? "⚠️ Inventario vacío." 
-                                    : `No se encontraron resultados para "${busqueda}"`}
+                            <div className="empty-state" style={{ padding: '30px 10px', marginTop: '10px' }}>
+                                <p>No se encontraron resultados para "{busqueda}"</p>
                             </div>
                         )}
                     </div>
@@ -148,25 +142,24 @@ const VentasLocal = () => {
 
                 {/* --- PANEL DERECHO: CAJA --- */}
                 <div className="ventas-card">
-                    <h3 className="ventas-card-title">2. Registrar Cobro</h3>
+                    <h3 className="ventas-card-title">2. Caja y Cobro</h3>
                     
                     {productoSeleccionado ? (
                         <form onSubmit={handleSubmit}>
-                            {/* Tarjeta destacada del producto seleccionado */}
                             <div className="selected-product-card">
                                 <img 
-                                    src={productoSeleccionado.imagen || 'https://via.placeholder.com/70?text=Tela'} 
+                                    src={productoSeleccionado.imagen || 'https://via.placeholder.com/80?text=Tela'} 
                                     alt={productoSeleccionado.nombre} 
                                     className="selected-product-img"
                                 />
                                 <div className="selected-product-details">
-                                    <span className="label">Tela a vender</span>
+                                    <span className="label">Tela Seleccionada</span>
                                     <span className="title">{productoSeleccionado.nombre || productoSeleccionado.name || productoSeleccionado.title}</span>
                                 </div>
                             </div>
                             
                             <div>
-                                <label className="form-label">Metros a cortar:</label>
+                                <label className="form-label">Metros a cortar</label>
                                 <input 
                                     type="number" 
                                     step="0.01"
@@ -188,7 +181,7 @@ const VentasLocal = () => {
                             </div>
 
                             <div>
-                                <label className="form-label">Total Cobrado en Caja ($):</label>
+                                <label className="form-label">Total Cobrado en mostrador ($)</label>
                                 <input 
                                     type="number" 
                                     step="0.01"
@@ -201,12 +194,12 @@ const VentasLocal = () => {
                             </div>
 
                             <button type="submit" className="btn-submit">
-                                <i className="fas fa-check-circle"></i> Confirmar Venta
+                                Confirmar Venta
                             </button>
                         </form>
                     ) : (
                         <div className="empty-state">
-                            <span style={{ fontSize: '2.5rem', marginBottom: '15px' }}>✂️</span>
+                            <span style={{ fontSize: '3rem' }}>✂️</span>
                             <p>Seleccioná una tela del inventario para iniciar el proceso de cobro.</p>
                         </div>
                     )}
