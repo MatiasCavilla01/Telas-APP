@@ -617,23 +617,18 @@ def cotizar_envio_api(request):
         
     return Response(resultado, status=200)
 
-
 @api_view(['POST'])
 #@permission_classes([IsAdminUser]) # 🔒 Seguridad: Solo vos (el admin) podés emitir etiquetas gastando saldo
 def generar_etiqueta_envio_view(request, pedido_id):
-    # 1. Buscamos el pedido en la base de datos
     pedido = get_object_or_404(Pedido, id=pedido_id)
     
-    # Verificamos que no tenga ya una etiqueta creada para no gastar doble saldo
     if pedido.estado == 'Enviado':
         return Response({"error": "Este pedido ya fue enviado o ya tiene una etiqueta generada."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 2. Traemos la configuración para sacar el Token
     config = StoreConfiguration.objects.filter(is_active=True).first()
     if not config or not config.api_key_envia:
         return Response({"error": "Falta el Token de Envia.com en el panel."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 3. Armamos el Payload AUTOMÁTICO leyendo el pedido
     base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/generate"
     
@@ -642,35 +637,42 @@ def generar_etiqueta_envio_view(request, pedido_id):
         "Content-Type": "application/json"
     }
 
-    # Separamos la calle y el número de la dirección que guardamos organizada
-    # (Esto asume que el cliente guardó su calle y número)
+    # =======================================================
+    # PAYLOAD CORREGIDO PARA PRODUCCIÓN
+    # =======================================================
     payload = {
         "origin": {
             "name": config.title,
             "company": config.title,
-            "email": "contacto@telasapp.com",
-            "phone": config.telefono or "3510000000",
-            "street": "San Martín",
-            "number": "123",
-            "district": "Centro",
-            "city": "Córdoba",
-            "state": "CB",
+            "email": "nachozubri15@gmail.com",
+            "phone": config.telefono or "3562517046",
+            "street": "Urquiza",       # 📍 FIJO: Debe coincidir con services_envia.py
+            "number": "70",            # 📍 FIJO
+            "district": "",
+            "city": "San Guillermo",   # 📍 FIJO
+            "state": "SF",             # 📍 FIJO
             "country": "AR",
-            "postalCode": "5000"
+            "postalCode": "2347"       # 📍 FIJO: Código postal de tu local
         },
         "destination": {
             "name": pedido.nombre_cliente,
             "company": "",
             "email": pedido.email_cliente,
-            "phone": pedido.telefono_cliente,
-            "street": pedido.direccion_envio, # Mandamos la dirección completa guardada
-            "number": "s/n",
+            "phone": pedido.telefono_cliente or "3510000000",
+            
+            # 🚚 DINÁMICO: Enviamos la dirección completa tal como la escribió el cliente
+            "street": pedido.direccion_envio[:50], # Limitamos a 50 chars por si es muy larga
+            
+            # ⚠️ CLAVE: Reemplazamos "s/n" por "1" para evitar el rechazo automático de formato
+            "number": "1", 
             "district": "",
             "city": "Ciudad", 
             "state": "CB",
             "country": "AR",
-            "postalCode": "5000", # Deberías guardar el CP limpio en el modelo si Envia se pone estricto
-            "reference": ""
+            "postalCode": "5000", # TODO: En el futuro, guardar el CP real en el modelo Pedido
+            
+            # Ponemos la dirección completa en la referencia para que el cartero la lea bien
+            "reference": f"Entregar en: {pedido.direccion_envio}" 
         },
         "packages": [
             {
@@ -690,9 +692,8 @@ def generar_etiqueta_envio_view(request, pedido_id):
             }
         ],
         "shipment": {
-            # 😎 AQUÍ SE USA LA MAGIA AUTOMÁTICA QUE ELIGIÓ EL CLIENTE:
-            "carrier": pedido.envia_carrier,  # Ej: "correoargentino"
-            "service": pedido.envia_service,  # Ej: "estandar"
+            "carrier": pedido.envia_carrier or "correoargentino", 
+            "service": pedido.envia_service or "estandar", 
             "type": 1
         },
         "settings": {
@@ -700,8 +701,6 @@ def generar_etiqueta_envio_view(request, pedido_id):
             "printSize": "STOCK_4X6",
             "comments": "Telas APP"
         }
-
-        
     }
 
     try:
@@ -711,9 +710,7 @@ def generar_etiqueta_envio_view(request, pedido_id):
         if response.status_code == 200 and 'data' in res_data:
             info_envio = res_data['data'][0]
             
-            # 4. Guardamos los datos devueltos por Envia en nuestro Pedido
             pedido.estado = 'Enviado'
-            # Si agregaste campos para el tracking o la URL del PDF, los guardás acá:
             pedido.tracking_number = info_envio.get('trackingNumber')
             pedido.url_etiqueta = info_envio.get('label')
             pedido.save()
@@ -722,14 +719,18 @@ def generar_etiqueta_envio_view(request, pedido_id):
                 "success": True,
                 "mensaje": "Etiqueta generada con éxito.",
                 "tracking_number": info_envio.get('trackingNumber'),
-                "label_url": info_envio.get('label') # Este es el link al PDF para imprimir
+                "label_url": info_envio.get('label')
             }, status=status.HTTP_200_OK)
         else:
-            return Response({"error": "Envia.com rechazó la generación.", "detalle": res_data}, status=status.HTTP_400_BAD_REQUEST)
+            # 🚨 AHORA SÍ VEREMOS EL ERROR EXACTO QUE DEVUELVE ENVIA.COM
+            print(f"🚨 ERROR ENVIA: {res_data}")
+            return Response({
+                "error": "Envia.com rechazó la generación.", 
+                "detalle": res_data # Le pasamos el JSON completo a React
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 
 class TarifaLocalViewSet(viewsets.ModelViewSet):
     queryset = TarifaLocal.objects.all().order_by('localidad')
