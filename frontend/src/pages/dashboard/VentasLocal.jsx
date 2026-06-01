@@ -16,19 +16,15 @@ const VentasLocal = () => {
     useEffect(() => {
         axios.get('https://ignaciozurbriggen.pythonanywhere.com/api/productos/')
             .then((res) => {
-                console.log("📡 Datos crudos desde Django:", res.data); // Para depurar en F12
-
                 let dataExtraida = [];
                 
-                // Extractor absoluto: Busca la lista de telas en todas las estructuras posibles de Django Rest Framework
                 if (Array.isArray(res.data)) {
-                    dataExtraida = res.data; // Si viene como lista directa
+                    dataExtraida = res.data; 
                 } else if (res.data && Array.isArray(res.data.results)) {
-                    dataExtraida = res.data.results; // Si viene paginado por DRF
+                    dataExtraida = res.data.results; 
                 } else if (res.data && Array.isArray(res.data.data)) {
-                    dataExtraida = res.data.data; // Si viene envuelto en un objeto 'data'
+                    dataExtraida = res.data.data; 
                 } else if (typeof res.data === 'object') {
-                    // Si todo falla, busca la primera propiedad que sea una lista
                     for (let key in res.data) {
                         if (Array.isArray(res.data[key])) {
                             dataExtraida = res.data[key];
@@ -42,14 +38,12 @@ const VentasLocal = () => {
             })
             .catch(err => {
                 console.error("❌ Error cargando telas:", err);
-                setMensaje({ tipo: 'error', texto: 'Error al conectar con la base de datos. Revisa que el backend esté corriendo.' });
+                setMensaje({ tipo: 'error', texto: 'Error de conexión.' });
                 setCargando(false);
             });
     }, []);
 
-    // Buscador instantáneo (con protección contra campos nulos)
     const productosFiltrados = productos.filter(p => {
-        // Resguardo por si el serializador envía el nombre en otra variable
         const nombreTela = p.nombre || p.name || p.title || ''; 
         return nombreTela.toLowerCase().includes(busqueda.toLowerCase());
     });
@@ -68,16 +62,14 @@ const VentasLocal = () => {
                 precio_cobrado: precioCobrado
             });
             
-            setMensaje({ tipo: 'success', texto: '✅ Venta registrada y stock descontado.' });
+            setMensaje({ tipo: 'success', texto: '✅ Venta registrada y stock actualizado.' });
             
-            // Descuenta el stock en la pantalla al instante
             setProductos(productos.map(p => 
                 p.id === productoSeleccionado.id 
                     ? { ...p, stock_metros: res.data.nuevo_stock } 
                     : p
             ));
             
-            // Limpia la caja
             setMetros('');
             setPrecioCobrado('');
             setProductoSeleccionado(null);
@@ -104,12 +96,9 @@ const VentasLocal = () => {
 
             <div className="ventas-grid">
                 
-                {/* --- PASO 1: BUSCADOR RÁPIDO --- */}
+                {/* --- PANEL IZQUIERDO: BUSCADOR --- */}
                 <div className="ventas-card">
-                    {/* 👇 Agregamos un contador para que veas si está leyendo la base de datos */}
-                    <h3 className="ventas-card-title">
-                        1. Buscar Tela <span style={{ fontSize: '0.8rem', opacity: 0.6, fontWeight: 'normal' }}>({productos.length} en sistema)</span>
-                    </h3>
+                    <h3 className="ventas-card-title">1. Buscar Tela <span style={{ fontSize: '0.8rem', opacity: 0.6, fontWeight: 'normal', textTransform: 'lowercase' }}>({productos.length} en sistema)</span></h3>
                     
                     <input 
                         type="text" 
@@ -122,20 +111,25 @@ const VentasLocal = () => {
 
                     <div className="lista-productos">
                         {cargando ? (
-                            <p style={{ opacity: 0.5, textAlign: 'center' }}>Conectando con el inventario...</p>
+                            <p style={{ opacity: 0.5, textAlign: 'center' }}>Cargando inventario...</p>
                         ) : productosFiltrados.length > 0 ? (
                             productosFiltrados.map(p => (
                                 <div 
                                     key={p.id} 
                                     className={`producto-item ${productoSeleccionado?.id === p.id ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setProductoSeleccionado(p);
-                                    }}
+                                    onClick={() => setProductoSeleccionado(p)}
                                 >
-                                    <div className="producto-info">
-                                        {/* Fallback visual del nombre por seguridad */}
-                                        <span className="nombre">{p.nombre || p.name || p.title || 'Tela sin nombre'}</span>
-                                        <span className="precio">${p.precio_por_metro || 0} / metro</span>
+                                    <div className="producto-item-left">
+                                        {/* Renderizado de la imagen de la tela */}
+                                        <img 
+                                            src={p.imagen || 'https://via.placeholder.com/48?text=Tela'} 
+                                            alt={p.nombre || 'Tela'} 
+                                            className="producto-thumb"
+                                        />
+                                        <div className="producto-info">
+                                            <span className="nombre">{p.nombre || p.name || p.title || 'Tela sin nombre'}</span>
+                                            <span className="precio">${p.precio_por_metro || 0} / metro</span>
+                                        </div>
                                     </div>
                                     <span className={`producto-stock ${(p.stock_metros || 0) <= 5 ? 'bajo' : ''}`}>
                                         {p.stock_metros || 0}m
@@ -145,24 +139,30 @@ const VentasLocal = () => {
                         ) : (
                             <div style={{ opacity: 0.5, textAlign: 'center', marginTop: '20px' }}>
                                 {productos.length === 0 
-                                    ? "⚠️ La lista de telas llegó vacía desde el backend." 
-                                    : `No se encontraron telas con "${busqueda}"`}
+                                    ? "⚠️ Inventario vacío." 
+                                    : `No se encontraron resultados para "${busqueda}"`}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* --- PASO 2: CAJA Y COBRO --- */}
+                {/* --- PANEL DERECHO: CAJA --- */}
                 <div className="ventas-card">
                     <h3 className="ventas-card-title">2. Registrar Cobro</h3>
                     
                     {productoSeleccionado ? (
                         <form onSubmit={handleSubmit}>
-                            <div className="alert alert-success" style={{ marginBottom: '20px', padding: '12px', display: 'block' }}>
-                                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Tela a vender:</div>
-                                <strong style={{ fontSize: '1.1rem' }}>
-                                    {productoSeleccionado.nombre || productoSeleccionado.name || productoSeleccionado.title}
-                                </strong>
+                            {/* Tarjeta destacada del producto seleccionado */}
+                            <div className="selected-product-card">
+                                <img 
+                                    src={productoSeleccionado.imagen || 'https://via.placeholder.com/70?text=Tela'} 
+                                    alt={productoSeleccionado.nombre} 
+                                    className="selected-product-img"
+                                />
+                                <div className="selected-product-details">
+                                    <span className="label">Tela a vender</span>
+                                    <span className="title">{productoSeleccionado.nombre || productoSeleccionado.name || productoSeleccionado.title}</span>
+                                </div>
                             </div>
                             
                             <div>
@@ -201,13 +201,13 @@ const VentasLocal = () => {
                             </div>
 
                             <button type="submit" className="btn-submit">
-                                💲 Confirmar Venta
+                                <i className="fas fa-check-circle"></i> Confirmar Venta
                             </button>
                         </form>
                     ) : (
                         <div className="empty-state">
-                            <span style={{ fontSize: '2rem', marginBottom: '10px' }}>👈</span>
-                            <p>Buscá y tocá una tela en la lista de la izquierda para habilitar la caja.</p>
+                            <span style={{ fontSize: '2.5rem', marginBottom: '15px' }}>✂️</span>
+                            <p>Seleccioná una tela del inventario para iniciar el proceso de cobro.</p>
                         </div>
                     )}
                 </div>
