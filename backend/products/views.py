@@ -950,19 +950,18 @@ def obtener_sucursales_api(request):
     # Mapeamos al formato que espera el frontend
     # (igual al de las opciones de domicilio, pero con campos extra de "sucursal")
     sucursales_formateadas = []
-    for idx, op in enumerate(sucursales_filtradas):
-        sucursales_formateadas.append({
-            "nombre":        op.get("proveedor", "Correo Argentino"),
-            "direccion":     "Retirá en sucursal más cercana a tu CP",
-            "localidad":     f"CP {codigo_postal}",
-            "carrier_code":  op.get("carrier_code") or "correoargentino",
-            "service_code":  op.get("service_code") or "estandar",
-            # Estos son los campos que usa el frontend para las tarjetas:
-            "proveedor":     op.get("proveedor", "Correo Argentino"),
-            "servicio":      op.get("servicio", "Envío a Sucursal"),
-            "costo":         op.get("costo", 0),
-            "tiempo_entrega": op.get("tiempo_entrega", "3-5 días hábiles"),
-        })
+    for op in sucursales_filtradas:
+      sucursales_formateadas.append({
+        "nombre":       op.get("proveedor", "Correo Argentino"),
+        "direccion":    op.get("sucursal_direccion") or "Sucursal más cercana a tu CP",
+        "localidad":    f"CP {codigo_postal}",
+        "carrier_code": op.get("carrier_code") or "correoargentino",
+        "service_code": op.get("service_code") or "estandar",
+        "proveedor":    op.get("proveedor", "Correo Argentino"),
+        "servicio":     op.get("servicio", "Envío a Sucursal"),
+        "costo":        op.get("costo", 0),
+        "tiempo_entrega": op.get("tiempo_entrega", "3-5 días hábiles"),
+    })
 
     return Response({"sucursales": sucursales_formateadas}, status=200)
 

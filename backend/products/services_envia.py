@@ -29,7 +29,6 @@ def calcular_costo_envio(codigo_postal_destino):
         }
 
     # 3. Preparar la petición a la API de Envia.com
-    # Usamos la variable de entorno, o por defecto la de pruebas si no la encuentra.
     base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/rate"
     
@@ -45,13 +44,13 @@ def calcular_costo_envio(codigo_postal_destino):
             "company": config.title,
             "email": "nachozubri15@gmail.com",
             "phone": config.telefono or "3562517046",
-            "street": "Urquiza", 
+            "street": "Urquiza",
             "number": "70",
             "district": "",
             "city": "San Guillermo",
             "state": "SF",
             "country": "AR",
-            "postalCode": "2347", # ⚠️ IMPORTANTE: Cambiar por el CP real desde donde despacha tu cliente
+            "postalCode": "2347",
             "reference": ""
         },
         "destination": {
@@ -63,7 +62,7 @@ def calcular_costo_envio(codigo_postal_destino):
             "number": "344",
             "district": "",
             "city": "Cordoba",
-            "state": "CB",  # 👇 ESTA ES LA CORRECCIÓN CLAVE
+            "state": "CB",
             "country": "AR",
             "postalCode": str(codigo_postal_destino),
             "reference": ""
@@ -86,42 +85,30 @@ def calcular_costo_envio(codigo_postal_destino):
             }
         ],
         "shipment": {
-            "carrier": "correoargentino", # Vacio para que devuelva TODAS las opciones disponibles (Andreani, Correo Argentino, etc)
-            "type": 1 
+            "carrier": "correoargentino",
+            "type": 1
         }
     }
 
     # 5. Ejecutar la llamada a la API
-    # 5. Ejecutar la llamada a la API
     try:
         response = requests.post(endpoint, json=payload, headers=headers)
         
-        # 👇 NUEVO: Interceptamos si Envia devuelve un error antes de que Python explote
         if response.status_code != 200:
-            print("\n--- 🚨 ERROR DE ENVIA.COM 🚨 ---")
-            print(f"Status Code: {response.status_code}")
-            print(f"Respuesta cruda: {response.text}")
-            print("--------------------------------\n")
             return {
-                "error": True, 
+                "error": True,
                 "mensaje": f"Fallo al cotizar (HTTP {response.status_code}). Revisar consola de Django."
             }
 
-        # Si llegamos acá, es porque Envia respondió OK (Status 200)
         response_data = response.json()
 
         if 'data' in response_data and response_data['data']:
             opciones_brutas = response_data['data']
             lista_opciones = []
-            
-            # Recorremos TODAS las opciones que nos da el correo
+
             for op in opciones_brutas:
-                
-                # 👇 AQUÍ VAN LOS PRINTS DE DIAGNÓSTICO 👇
-                print("--- DATOS DE OPCIÓN DE ENVIA.COM ---")
-                print(op)
-                print("------------------------------------")
-                # 👆 ------------------------------------ 👆
+                branches = op.get('branches') or []
+                sucursal_cercana = branches[0] if branches else None
 
                 lista_opciones.append({
                     "id": op.get('carrierId'),
@@ -129,10 +116,9 @@ def calcular_costo_envio(codigo_postal_destino):
                     "servicio": op.get('serviceDescription', 'Estándar'),
                     "costo": float(op.get('totalPrice', 0)),
                     "tiempo_entrega": op.get('deliveryEstimate', 'Desconocido'),
-                    
-                    # Códigos técnicos para la etiqueta
                     "carrier_code": op.get('carrier', 'correoargentino').lower(),
-                    "service_code": op.get('service', 'estandar').lower()
+                    "service_code": op.get('service', 'estandar').lower(),
+                    "sucursal_direccion": sucursal_cercana.get('reference', '') if sucursal_cercana else '',
                 })
 
             return {
@@ -141,9 +127,8 @@ def calcular_costo_envio(codigo_postal_destino):
                 "opciones": lista_opciones
             }
 
-            
         else:
-             return {"error": True, "mensaje": "Envia.com no devolvió opciones de correo.", "detalle": response_data}
+            return {"error": True, "mensaje": "Envia.com no devolvió opciones de correo.", "detalle": response_data}
 
     except Exception as e:
         return {"error": True, "mensaje": f"Error interno del servidor Django: {str(e)}"}
