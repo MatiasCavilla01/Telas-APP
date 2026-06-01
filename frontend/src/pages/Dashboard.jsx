@@ -107,7 +107,7 @@ const Dashboard = () => {
             )}
           </button>
           <span style={{ fontWeight: 800, fontSize: '18px', marginLeft: '12px', letterSpacing: '-0.5px' }}>
-            Telas-APP
+            TiendaIA
           </span>
         </header>
       )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Header from '../../components/Header';
 import Card from '../../components/Card';
@@ -68,7 +68,7 @@ const TarjetaProducto = ({ prod, index, isMobile, onEditarCompleto, onEliminar, 
               {prod.categorias_nombres && prod.categorias_nombres.length > 0 ? prod.categorias_nombres.join(' • ') : 'Sin categoría'} • {prod.ancho_cm}cm ancho
             </span>
           </div>
-          {/* Opcional: Mostrar usos debajo (Telas para...) */}
+          {/* Mostrar usos debajo (Telas para...) */}
           {prod.usos_nombres && prod.usos_nombres.length > 0 && (
              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', fontWeight: 600 }}>
                Para: {prod.usos_nombres.join(', ')}
@@ -180,6 +180,9 @@ const TarjetaProducto = ({ prod, index, isMobile, onEditarCompleto, onEliminar, 
 
 // --- VISTA PRINCIPAL ---
 const VistaProductos = () => {
+  // 👇 1. CREAMOS LA REFERENCIA PARA EL SCROLL
+  const topRef = useRef(null);
+  
   const [showForm, setShowForm] = useState(false);
   
   const [form, setForm] = useState({ 
@@ -281,7 +284,15 @@ const VistaProductos = () => {
       });
     }
 
-    setImagenesOriginales(idsOriginales); setImages(imagenesCargadas); setShowForm(true); setStatusMsg('');
+    setImagenesOriginales(idsOriginales); 
+    setImages(imagenesCargadas); 
+    setShowForm(true); 
+    setStatusMsg('');
+    
+    // 👇 2. USAMOS SCROLLINTOVIEW CON UN PEQUEÑO RETRASO 👇
+    setTimeout(() => {
+      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const resetForm = () => {
@@ -358,10 +369,20 @@ const VistaProductos = () => {
   const labelStyle = { fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6, display: 'block' };
 
   return (
-    <div>
+    // 👇 3. ASIGNAMOS EL REF AL CONTENEDOR PRINCIPAL 👇
+    <div ref={topRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 10 }}>
         <Header title="Productos & Stock" subtitle="Gestioná tu catálogo de telas" />
-        <button onClick={() => { resetForm(); setShowForm(true); }} style={{
+        
+        {/* 👇 4. ACTUALIZAMOS EL BOTÓN AGREGAR 👇 */}
+        <button onClick={() => { 
+            resetForm(); 
+            setShowForm(true); 
+            setTimeout(() => {
+              topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+          }} 
+          style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
           background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14
         }}>
@@ -437,7 +458,7 @@ const VistaProductos = () => {
               </div>
             </div>
 
-            {/* 👇 NUEVA SECCIÓN: Selector de Usos (Telas para...) 👇 */}
+            {/* Selector de Usos (Telas para...) */}
             <div style={{ gridColumn: '1/-1' }}>
               <label style={labelStyle}>Telas Para... (Etiquetas de uso opcionales)</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
