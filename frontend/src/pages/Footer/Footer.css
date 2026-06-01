@@ -144,3 +144,26 @@
         justify-content: center;
     }
 }
+/* Footer.css */
+.footer-dev-logo {
+    margin-top: 15px;
+}
+
+.footer-dev-logo img {
+    max-width: 200px; /* Ajusta según el tamaño de tu logo dev */
+    height: auto;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.footer-dev-logo img:hover {
+    opacity: 1;
+}
+
+/* Ajuste para móviles */
+@media (max-width: 768px) {
+    .footer-dev-logo {
+        display: flex;
+        justify-content: center;
+    }
+}
