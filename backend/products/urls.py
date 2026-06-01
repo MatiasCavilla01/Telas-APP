@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/mercadopago/success/', views.success_redirect, name='mp-success'),
     path('api/estadisticas/', views.api_estadisticas, name='api_estadisticas'),
     path('api/pedido/venta-local/', views.RegistrarVentaLocalView.as_view(), name='venta_local'),
+    path('envio/sucursales/', views.obtener_sucursales_api, name='obtener_sucursales'),
     
 
     # 👇 NUEVA RUTA PARA GENERAR LA ETIQUETA DE UN PEDIDO ESPECÍFICO 👇

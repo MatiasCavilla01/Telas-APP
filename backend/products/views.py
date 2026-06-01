@@ -883,3 +883,113 @@ class RegistrarVentaLocalView(APIView):
             return Response({"error": "El producto seleccionado no existe."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# =========================================================================
+#  NUEVA FUNCIÓN — Agregala al final de tu views.py
+#  La URL ya está definida: path('envio/sucursales/', views.obtener_sucursales_api, ...)
+# =========================================================================
+
+@api_view(['POST'])
+def obtener_sucursales_api(request):
+    """
+    Recibe {"codigo_postal": "3000"} y devuelve las opciones de envío
+    a SUCURSAL disponibles para ese CP, usando el mismo endpoint de
+    cotización que ya tenés en services_envia.py.
+    
+    Estrategia: reutilizamos calcular_costo_envio() y filtramos solo
+    las opciones cuyo nombre de servicio indique 'sucursal'.
+    No hay un endpoint separado de sucursales en Envia.com para AR.
+    """
+    codigo_postal = request.data.get('codigo_postal')
+
+    if not codigo_postal:
+        return Response(
+            {"error": True, "mensaje": "Debes enviar un código postal."},
+            status=400
+        )
+
+    # Reutilizamos la función que ya tenés en services_envia.py
+    resultado = calcular_costo_envio(codigo_postal)
+
+    if resultado.get("error"):
+        return Response(resultado, status=400)
+
+    # Si es envío local por comisionista, no hay sucursales
+    if resultado.get("tipo") == "Local":
+        return Response(
+            {"error": True, "mensaje": "Zona de envío local. No aplican sucursales de Correo Argentino."},
+            status=400
+        )
+
+    opciones = resultado.get("opciones", [])
+
+    if not opciones:
+        return Response(
+            {"error": True, "mensaje": "No se encontraron opciones de envío para este código postal."},
+            status=400
+        )
+
+    # Filtramos SOLO las opciones que son envíos a SUCURSAL
+    # Envia.com devuelve el nombre del servicio con "sucursal" o "Sucursal"
+    sucursales_filtradas = [
+        op for op in opciones
+        if "sucursal" in (op.get("servicio") or "").lower()
+    ]
+
+    if not sucursales_filtradas:
+        return Response(
+            {
+                "error": True,
+                "mensaje": (
+                    "No hay envíos a sucursal disponibles para este CP. "
+                    "Podés elegir envío a domicilio en la opción anterior."
+                )
+            },
+            status=400
+        )
+
+    # Mapeamos al formato que espera el frontend
+    # (igual al de las opciones de domicilio, pero con campos extra de "sucursal")
+    sucursales_formateadas = []
+    for idx, op in enumerate(sucursales_filtradas):
+        sucursales_formateadas.append({
+            "nombre":        op.get("proveedor", "Correo Argentino"),
+            "direccion":     "Retirá en sucursal más cercana a tu CP",
+            "localidad":     f"CP {codigo_postal}",
+            "carrier_code":  op.get("carrier_code") or "correoargentino",
+            "service_code":  op.get("service_code") or "estandar",
+            # Estos son los campos que usa el frontend para las tarjetas:
+            "proveedor":     op.get("proveedor", "Correo Argentino"),
+            "servicio":      op.get("servicio", "Envío a Sucursal"),
+            "costo":         op.get("costo", 0),
+            "tiempo_entrega": op.get("tiempo_entrega", "3-5 días hábiles"),
+        })
+
+    return Response({"sucursales": sucursales_formateadas}, status=200)
+
+
+# =========================================================================
+#  IMPORTANTE: También revisá tu services_envia.py
+#  La función calcular_costo_envio() tiene que devolver carrier_code
+#  y service_code en cada opción. Si no los devuelve, el payload al
+#  crear el pedido va a mandar 'correoargentino' y 'estandar' por default.
+#
+#  El response esperado de calcular_costo_envio() es algo así:
+#  {
+#    "opciones": [
+#      {
+#        "proveedor": "Correo Argentino",
+#        "servicio": "Estándar a Sucursal",   <-- contiene "sucursal"
+#        "costo": 3200,
+#        "tiempo_entrega": "3-5 días hábiles",
+#        "carrier_code": "correoargentino",    <-- necesario
+#        "service_code": "estandar"            <-- necesario
+#      },
+#      {
+#        "proveedor": "Correo Argentino",
+#        "servicio": "Estándar a Domicilio",   <-- contiene "domicilio"
+#        "costo": 4100,
+#        ...
+#      }
+#    ]
+#  }
+# =========================================================================
