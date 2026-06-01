@@ -43,8 +43,8 @@ def calcular_costo_envio(codigo_postal_destino):
         "origin": {
             "name": config.title,
             "company": config.title,
-            "email": "contacto@telasapp.com",
-            "phone": config.telefono or "3510000000",
+            "email": "nachozubri15@gmail.com",
+            "phone": config.telefono or "3562517046",
             "street": "Urquiza", 
             "number": "70",
             "district": "",
