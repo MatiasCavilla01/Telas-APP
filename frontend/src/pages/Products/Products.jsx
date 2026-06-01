@@ -268,9 +268,7 @@ const Productos = () => {
                                         alt={producto.nombre} 
                                         className="producto-image" 
                                     />
-                                    {producto.stock_metros < 10 && producto.stock_metros > 0 && (
-                                        <span className="producto-badge">Últimos metros</span>
-                                    )}
+                                    
                                 </div>
                                 
                                 <div className="producto-info">

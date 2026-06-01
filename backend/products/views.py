@@ -818,3 +818,65 @@ class ConfirmarPedidoView(APIView):
         enviar_notificacion_dueño(pedido, telefono_del_dueño)
 
         return Response({"mensaje": "Pedido confirmado y alerta de WhatsApp enviada al dueño."})
+    
+# ventas en local
+
+class RegistrarVentaLocalView(APIView):
+    # 🔒 Opcional: Podés agregar permission_classes = [IsAdminUser] si querés protegerlo
+    
+    def post(self, request):
+        try:
+            producto_id = request.data.get('producto_id')
+            cantidad_metros = Decimal(str(request.data.get('metros', 0)))
+            precio_cobrado = Decimal(str(request.data.get('precio_cobrado', 0)))
+
+            if not producto_id or cantidad_metros <= 0:
+                return Response({"error": "Datos de venta inválidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Usamos un bloque atómico para evitar problemas si venden en simultáneo en la web
+            with transaction.atomic():
+                # select_for_update bloquea la fila temporalmente para asegurar el stock
+                producto = Producto.objects.select_for_update().get(id=producto_id)
+
+                if producto.stock_metros < cantidad_metros:
+                    return Response({
+                        "error": f"Stock insuficiente para {producto.nombre}. Disponible: {producto.stock_metros}m"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # 1. Descontamos el stock físico
+                producto.stock_metros -= cantidad_metros
+                producto.save()
+
+                # 2. Registramos la venta como un Pedido Aprobado para mantener tus estadísticas al día
+                pedido = Pedido.objects.create(
+                    nombre_cliente="Cliente Local",
+                    email_cliente="local@telasapp.com", # Email ficticio obligatorio en tu modelo
+                    telefono_cliente="-",
+                    direccion_envio="Venta directa en Mostrador",
+                    total=precio_cobrado,
+                    metodo_pago="Efectivo/Tarjeta Local",
+                    estado="Aprobado",
+                    tipo_envio="Retiro en Local",
+                    detalle_items=f"• {producto.nombre}: {cantidad_metros} metros (Venta Local)\n"
+                )
+
+                # 3. Guardamos el item histórico
+                PedidoItem.objects.create(
+                    pedido=pedido,
+                    producto=producto,
+                    nombre_producto=producto.nombre,
+                    cantidad_metros=cantidad_metros,
+                    precio_unitario=(precio_cobrado / cantidad_metros) if cantidad_metros > 0 else 0
+                )
+
+            # ✨ Respuesta limpia: Sin llamadas a send_mail ni plantillas de WhatsApp
+            return Response({
+                "success": True, 
+                "mensaje": "Venta registrada y stock actualizado con éxito.",
+                "nuevo_stock": float(producto.stock_metros)
+            }, status=status.HTTP_201_CREATED)
+
+        except Producto.DoesNotExist:
+            return Response({"error": "El producto seleccionado no existe."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

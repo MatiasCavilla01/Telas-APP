@@ -13,8 +13,8 @@ import VistaStats from './pages/dashboard/VistaStats';
 import VistaPedidos from './pages/dashboard/VistaPedidos';
 import VistaTransferencias from './pages/dashboard/VistaTransferencias';
 import VistaPuntosEntrega from './pages/dashboard/VistaPuntosEntrega';
+import VentasLocal from './pages/dashboard/VentasLocal'; 
 
-// Importamos las páginas públicas
 import Home from './pages/Home/Home.jsx';
 import Carrito from './pages/Carrito/Carrito.jsx';
 import DetalleProducto from './pages/Detalle producto/Detalle_producto.jsx';
@@ -86,6 +86,7 @@ function App() {
           <Route path="pedidos" element={<VistaPedidos />} />
           <Route path="transferencias" element={<VistaTransferencias />} />
           <Route path="puntos-entrega" element={<VistaPuntosEntrega />} />
+          <Route path="venta-local" element={<VentasLocal />} />
         </Route>
 
       </Routes>

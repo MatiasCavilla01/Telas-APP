@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/mercadopago/webhook/', views.webhook_mercadopago, name='mp-webhook'),
     path('api/mercadopago/success/', views.success_redirect, name='mp-success'),
     path('api/estadisticas/', views.api_estadisticas, name='api_estadisticas'),
+    path('api/pedido/venta-local/', views.RegistrarVentaLocalView.as_view(), name='venta_local'),
     
 
     # 👇 NUEVA RUTA PARA GENERAR LA ETIQUETA DE UN PEDIDO ESPECÍFICO 👇
