@@ -157,25 +157,7 @@ const VistaCategorias = () => {
               />
             </div>
 
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>
-                Categoría Padre <span style={{ color: '#94a3b8', fontWeight: 400 }}>(Si es una subcategoría)</span>
-              </label>
-              <select
-                style={inputStyle}
-                value={categoriaPadre}
-                onChange={e => setCategoriaPadre(e.target.value)}
-              >
-                <option value="">Ninguna (Es categoría principal)</option>
-                {categorias
-                  .filter(c => !editando || c.id !== editando.id)
-                  .map(cat => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.nombre_padre ? `${cat.nombre_padre} > ${cat.nombre}` : cat.nombre}
-                    </option>
-                  ))}
-              </select>
-            </div>
+            
 
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>Descripción <span style={{ color: '#94a3b8', fontWeight: 400 }}>(opcional)</span></label>

@@ -616,7 +616,6 @@ def cotizar_envio_api(request):
         return Response(resultado, status=400)
         
     return Response(resultado, status=200)
-
 @api_view(['POST'])
 #@permission_classes([IsAdminUser]) # 🔒 Seguridad: Solo vos (el admin) podés emitir etiquetas gastando saldo
 def generar_etiqueta_envio_view(request, pedido_id):
@@ -666,10 +665,13 @@ def generar_etiqueta_envio_view(request, pedido_id):
             # ⚠️ CLAVE: Reemplazamos "s/n" por "1" para evitar el rechazo automático de formato
             "number": "1", 
             "district": "",
-            "city": "Ciudad", 
-            "state": "CB",
+            
+            # 👇 100% DINÁMICO: Tomando los datos reales del modelo Pedido
+            # Se usa getattr de forma segura por si olvidaste migrar la base de datos
+            "city": getattr(pedido, 'ciudad', 'Ciudad Desconocida') or 'Ciudad Desconocida', 
+            "state": getattr(pedido, 'provincia', 'SF') or 'SF',
             "country": "AR",
-            "postalCode": "5000", # TODO: En el futuro, guardar el CP real en el modelo Pedido
+            "postalCode": str(getattr(pedido, 'codigo_postal', '0000')) or "0000",
             
             # Ponemos la dirección completa en la referencia para que el cartero la lea bien
             "reference": f"Entregar en: {pedido.direccion_envio}" 

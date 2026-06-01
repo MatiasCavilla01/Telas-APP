@@ -103,7 +103,7 @@ const VentasLocal = () => {
                         placeholder="Buscar por nombre de tela..." 
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
-                        autoFocus
+                        
                     />
 
                     <div className="lista-productos">
