@@ -22,7 +22,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.db.models import Sum
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from .services_envia import buscar_sucursales_cercanas, calcular_costo_envio, rastrear_envios
 # ⚠️ IMPORTAMOS EL NUEVO MODELO 'Pedido'
 from .models import Producto, StoreConfiguration, Categoria, ProductoImagen, PagoProcesado, Pedido, PedidoItem
 from .serializers import CategoriaSerializer, ProductoDesplegableSerializer, StoreConfigurationSerializer, ProductoSerializer, ProductoImagenSerializer, PedidoSerializer, ColorSerializer
@@ -931,14 +931,24 @@ class TarifaLocalViewSet(viewsets.ModelViewSet):
     queryset = TarifaLocal.objects.all().order_by('localidad')
     serializer_class = TarifaLocalSerializer
 
+
 @api_view(['POST'])
-def buscar_sucursales_api(request):
-    codigo_postal = request.data.get('codigo_postal')
-    if not codigo_postal:
-        return Response({"error": True, "mensaje": "Debes enviar un código postal."}, status=400)
-    
-    resultado = buscar_sucursales_cercanas(codigo_postal)
-    
-    if resultado.get("error"):
-        return Response(resultado, status=400)
-    return Response(resultado, status=200)
+def obtener_sucursales_api(request):
+       """
+       Recibe el código postal desde React y delega la búsqueda 
+       a la nueva función inteligente con Geocodes.
+       """
+       codigo_postal = request.data.get('codigo_postal')
+
+       if not codigo_postal:
+           return Response(
+               {"error": True, "mensaje": "Debes enviar un código postal."},
+               status=400
+           )
+
+       resultado = buscar_sucursales_cercanas(codigo_postal)
+
+       if resultado.get("error"):
+           return Response(resultado, status=400)
+
+       return Response(resultado, status=200)
