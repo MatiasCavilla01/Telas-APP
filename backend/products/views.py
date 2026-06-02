@@ -988,3 +988,7 @@ class RastrearPedidoView(APIView):
             return Response({"error": resultado["mensaje"]}, status=status.HTTP_400_BAD_REQUEST)
             
         return Response(resultado["data"], status=status.HTTP_200_OK)
+    
+class TarifaLocalViewSet(viewsets.ModelViewSet):
+    queryset = TarifaLocal.objects.all().order_by('localidad')
+    serializer_class = TarifaLocalSerializer
