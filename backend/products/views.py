@@ -298,11 +298,18 @@ class CrearPedidoView(APIView):
                     email_cliente=payer_data.get('email', ''),
                     telefono_cliente=payer_data.get('telefono', ''),
                     direccion_envio=payer_data.get('direccion_envio', 'No especificado'),
-                    total=total,  # ¡Ahora incluye telas + envío!
+                    
+                    # 👇 NUEVOS CAMPOS: Ahora sí guardamos los datos logísticos 👇
+                    ciudad=payer_data.get('ciudad', ''),
+                    provincia=payer_data.get('provincia', ''),
+                    codigo_postal=payer_data.get('codigoPostal', ''), # Ojo: React lo manda como codigoPostal (con P mayúscula)
+                    calle=payer_data.get('calle', ''),
+                    numero=payer_data.get('numero', ''),
+                    # 👆 FIN NUEVOS CAMPOS 👆
+
+                    total=total,
                     metodo_pago=metodo_pago,
                     estado=estado_inicial,
-                    
-                    # Se asigna el costo de envío limpio y se eliminó la línea duplicada
                     costo_envio=costo_envio_calculado,
                     tipo_envio=request.data.get('tipo_envio', 'Retiro en Local'),
                     envia_carrier=request.data.get('envia_carrier'),
@@ -656,14 +663,16 @@ def generar_etiqueta_envio_view(request, pedido_id):
             "email": pedido.email_cliente,
             "phone": pedido.telefono_cliente or "3510000000",
             
-            # 👇 DATOS VÁLIDOS FIJOS (Solo para que pase la prueba)
-            "street": "Obispo Oro", 
-            "number": "344", 
+            # Usamos la calle y número reales, con un fallback por si están vacíos
+            "street": getattr(pedido, 'calle', '') or pedido.direccion_envio[:50], 
+            "number": getattr(pedido, 'numero', '') or "1", 
             "district": "",
-            "city": "Cordoba", 
-            "state": "CB",
+            
+            # Ahora sí tomará los datos reales de Balnearia o cualquier ciudad
+            "city": getattr(pedido, 'ciudad', 'Ciudad Desconocida') or 'Ciudad Desconocida', 
+            "state": getattr(pedido, 'provincia', 'SF') or 'SF',
             "country": "AR",
-            "postalCode": "5000",
+            "postalCode": str(getattr(pedido, 'codigo_postal', '0000')) or "0000",
             
             "reference": f"Entregar en: {pedido.direccion_envio}" 
         },
