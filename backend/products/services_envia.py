@@ -35,7 +35,6 @@ def obtener_datos_geograficos(codigo_postal):
             res_data = response.json()
             if res_data.get("success") and "data" in res_data:
                 data = res_data["data"]
-                # Defensa contra listas
                 if isinstance(data, list) and len(data) > 0:
                     return data[0]
                 elif isinstance(data, dict):
@@ -73,7 +72,8 @@ def calcular_costo_envio(codigo_postal_destino):
     dest_city = geo_data.get("city", "Cordoba") if geo_data else "Cordoba"
     dest_state = geo_data.get("state", "CB") if geo_data else "CB"
 
-    print(f"🌍 [TEST GEOCODES] CP Ingresado: {codigo_postal_destino} | Ciudad detectada: '{dest_city}' | Provincia: '{dest_state}'")
+    # 👀 ESPÍA DE DOMICILIO 👀
+    print(f"📦 [DOMICILIO] Buscando CP: {codigo_postal_destino} | Ciudad: '{dest_city}' | Prov: '{dest_state}'")
 
     payload = {
         "origin": {
@@ -118,9 +118,10 @@ def calcular_costo_envio(codigo_postal_destino):
                     "service_code": op.get('service', 'estandar').lower()
                 })
             return {"error": False, "tipo": "Larga Distancia", "opciones": lista_opciones}
-        return {"error": True, "mensaje": "Envia.com no devolvió opciones de correo."}
+        
+        return {"error": True, "mensaje": f"No se pudo cotizar a domicilio para {dest_city} ({dest_state})."}
     except Exception as e:
-        return {"error": True, "mensaje": f"No hay sucursales para el CP {codigo_postal_destino} en la ciudad de {dest_city} ({dest_state})."}
+        return {"error": True, "mensaje": str(e)}
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  2. BUSCAR SUCURSALES
@@ -138,6 +139,9 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     dest_city = geo_data.get("city", "Cordoba") if geo_data else "Cordoba"
     dest_state = geo_data.get("state", "CB") if geo_data else "CB"
 
+    # 👀 ESPÍA DE SUCURSAL 👀
+    print(f"🏪 [SUCURSAL] Buscando CP: {codigo_postal_destino} | Ciudad: '{dest_city}' | Prov: '{dest_state}'")
+
     payload = {
         "origin": {
             "name": config.title, "company": config.title, "email": "nachozubri15@gmail.com",
@@ -147,9 +151,15 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
         },
         "destination": {
             "name": "Cliente Web", "company": "", "email": "nachozubri15@gmail.com",
-            "phone": "3510000000", "street": "", "number": "", "district": "",
-            "city": dest_city, "state": dest_state, "country": "AR",
-            "postalCode": str(codigo_postal_destino), "reference": ""
+            "phone": "3510000000", 
+            "street": "Centro",     # 🔥 TRUCO APLICADO PARA CIUDADES GRANDES
+            "number": "1",          # 🔥 TRUCO APLICADO PARA CIUDADES GRANDES
+            "district": "", 
+            "city": dest_city, 
+            "state": dest_state, 
+            "country": "AR",
+            "postalCode": str(codigo_postal_destino), 
+            "reference": ""
         },
         "packages": [{
             "content": "Telas y Textiles", "amount": 1, "type": "box",
@@ -165,11 +175,13 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     try:
         response = requests.post(endpoint, json=payload, headers=headers)
         if response.status_code != 200:
+            print(f"❌ [ERROR ENVIA] Status: {response.status_code} - Body: {response.text}")
             return {"error": True, "mensaje": "Error en la API de Envia."}
         
         response_data = response.json()
         if not response_data.get('data'):
-            return {"error": True, "mensaje": "No hay sucursales para este CP."}
+            print(f"❌ [ENVIA VACÍO] Respuesta cruda: {response_data}")
+            return {"error": True, "mensaje": f"No hay sucursales para el CP {codigo_postal_destino} en la ciudad de {dest_city} ({dest_state})."}
 
         sucursales_resultado = []
         for op in response_data['data']:
@@ -189,7 +201,8 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
                 })
         return {"error": False, "sucursales": sucursales_resultado}
     except Exception as e:
-        return {"error": True, "mensaje": str(e)}
+        print(f"❌ [EXCEPCIÓN SUCURSALES] {str(e)}")
+        return {"error": True, "mensaje": f"Error del servidor: {str(e)}"}
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  3. RASTREAR ENVÍOS
