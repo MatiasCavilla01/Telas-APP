@@ -29,7 +29,7 @@ def calcular_costo_envio(codigo_postal_destino):
         }
 
     # 3. Preparar la petición a la API de Envia.com
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
     endpoint = f"{base_url}/ship/rate"
     
     headers = {
@@ -132,3 +132,53 @@ def calcular_costo_envio(codigo_postal_destino):
 
     except Exception as e:
         return {"error": True, "mensaje": f"Error interno del servidor Django: {str(e)}"}
+
+
+# Añadir al final de services_envia.py
+
+def rastrear_envios(tracking_numbers):
+    """
+    Consulta el estado de uno o más envíos en la API de Envia.com.
+    tracking_numbers: lista de strings (ej: ["TRK123456", "TRK789012"])
+    """
+    # 1. Obtener credenciales de la configuración (igual que en tu otra función)
+    config = StoreConfiguration.objects.filter(is_active=True).first()
+    
+    if not config or not config.api_key_envia:
+        return {
+            "error": True,
+            "mensaje": "La configuración de envíos o el Token de Envia no están definidos."
+        }
+
+    # 2. Preparar la petición
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com') # Usamos test por defecto para pruebas
+    endpoint = f"{base_url}/ship/generaltrack/"
+    
+    headers = {
+        "Authorization": f"Bearer {config.api_key_envia}",
+        "Content-Type": "application/json"
+    }
+
+    # 3. Armar el payload (Envia.com espera la clave "trackingNumbers")
+    payload = {
+        "trackingNumbers": tracking_numbers
+    }
+
+    # 4. Ejecutar la llamada
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers)
+        
+        if response.status_code != 200:
+            return {
+                "error": True,
+                "mensaje": f"Fallo al rastrear (HTTP {response.status_code})."
+            }
+
+        # Retornamos la respuesta exitosa directamente
+        return {
+            "error": False,
+            "data": response.json()
+        }
+
+    except Exception as e:
+        return {"error": True, "mensaje": f"Error interno del servidor: {str(e)}"}

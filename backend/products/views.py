@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from django.db import transaction
 from django.shortcuts import redirect
 from django.core.mail import send_mail
-from .services_envia import calcular_costo_envio
+from .services_envia import calcular_costo_envio, rastrear_envios
 from django.shortcuts import redirect, get_object_or_404
 from django.db.models import Sum
 from django.http import JsonResponse
@@ -628,7 +628,7 @@ def generar_etiqueta_envio_view(request, pedido_id):
     if not config or not config.api_key_envia:
         return Response({"error": "Falta el Token de Envia.com en el panel."}, status=status.HTTP_400_BAD_REQUEST)
 
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
     endpoint = f"{base_url}/ship/generate"
     
     headers = {
@@ -992,3 +992,13 @@ def obtener_sucursales_api(request):
 #    ]
 #  }
 # =========================================================================
+
+class RastrearPedidoView(APIView):
+    def get(self, request, tracking_number):
+        # Llamamos a nuestra función genérica pasándole el tracking como lista
+        resultado = rastrear_envios([tracking_number])
+        
+        if resultado["error"]:
+            return Response({"error": resultado["mensaje"]}, status=status.HTTP_400_BAD_REQUEST)
+            
+        return Response(resultado["data"], status=status.HTTP_200_OK)

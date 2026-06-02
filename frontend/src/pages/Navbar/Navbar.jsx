@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ShoppingCart, Store, User, X, ChevronRight, ArrowUpDown, ChevronDown, Palette, Grid } from 'lucide-react';
+import { ShoppingCart, Store, User, X, ChevronRight, ArrowUpDown, ChevronDown, Palette, Grid, Truck } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = ({ cartCount = 0 }) => {
@@ -343,11 +343,14 @@ const Navbar = ({ cartCount = 0 }) => {
 
                 </nav>
 
-                <div className="drawer-footer">
-                    <Link to="/cuenta" className="drawer-account" onClick={closeMenu}>
-                        <User size={20} strokeWidth={1.5} /> Mi cuenta
-                    </Link>
-                </div>
+                <div className="drawer-footer" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    {/* Nuevo enlace para Seguimiento de Envíos */}
+    <Link to="/rastreo" className="drawer-account" onClick={closeMenu}>
+        <Truck size={20} strokeWidth={1.5} /> Seguir envíos
+    </Link>
+    
+   
+</div>
             </aside>
         </>
     );

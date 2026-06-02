@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/estadisticas/', views.api_estadisticas, name='api_estadisticas'),
     path('api/pedido/venta-local/', views.RegistrarVentaLocalView.as_view(), name='venta_local'),
     path('envio/sucursales/', views.obtener_sucursales_api, name='obtener_sucursales'),
+    path('api/rastrear/<str:tracking_number>/', views.RastrearPedidoView.as_view(), name='rastrear_pedido'),
     
 
     # 👇 NUEVA RUTA PARA GENERAR LA ETIQUETA DE UN PEDIDO ESPECÍFICO 👇

@@ -23,6 +23,7 @@ import Success from './pages/Success/Success.jsx';
 import TransferenciaSuccess from './pages/TransferenciaSuccess'; 
 import Productos from './pages/Products/Products.jsx';
 import Footer from './pages/Footer/Footer.jsx';
+import Rastreo from './pages/Rastreo';
 
 // 👇 1. IMPORTAMOS EL NUEVO COMPONENTE ACÁ 👇
 import WhatsAppFlotante from './components/WhatsAppFlotante'; 
@@ -66,8 +67,10 @@ function App() {
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/carrito" element={<Carrito />} />
+         
           <Route path="/producto/:id" element={<DetalleProducto />} />
           <Route path="/productos" element={<Productos />} />
+            <Route path="/rastreo" element={<Rastreo />} /> {/* Nueva ruta para rastreo */}
           
           {/* RUTAS DE PAGO */}
           <Route path="/checkout" element={<CheckoutSelection />} />

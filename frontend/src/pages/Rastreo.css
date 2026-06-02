@@ -1,0 +1,100 @@
+/* =========================================
+   ESTILOS PARA LA SECCIÓN DE RASTREO
+========================================= */
+.rastreo-page-container {
+    max-width: 500px;
+    margin: 120px auto 90px auto; /* Margen superior amplio para que no lo tape el navbar fixed */
+    padding: 2.5rem 2rem;
+    background-color: var(--crema-fondo);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--borde-suave);
+    font-family: 'Montserrat', sans-serif;
+    text-align: center;
+}
+
+.rastreo-title {
+    font-family: 'Playfair Display', serif;
+    color: var(--verde-atelier);
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.rastreo-subtitle {
+    color: var(--texto-oscuro);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+}
+
+.rastreo-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rastreo-input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--borde-suave);
+    background-color: var(--blanco);
+    color: var(--texto-oscuro);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.rastreo-input:focus {
+    border-color: var(--dorado-acento);
+}
+
+.rastreo-button {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--verde-atelier);
+    color: var(--blanco);
+    border: none;
+    border-radius: 4px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.rastreo-button:hover {
+    background-color: var(--verde-atelier-oscuro);
+    color: var(--dorado-acento);
+}
+
+/* Contenedor del resultado de Envia.com */
+.tracking-result-box {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: var(--blanco);
+    border-radius: 6px;
+    border-left: 4px solid var(--dorado-acento);
+    text-align: left;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.tracking-result-box h3 {
+    font-family: 'Playfair Display', serif;
+    color: var(--verde-atelier);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.tracking-info-row {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--texto-oscuro);
+}
