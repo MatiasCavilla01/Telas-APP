@@ -187,7 +187,6 @@ class PagoProcesado(models.Model):
         return self.pago_id
     
 # models.py (Actualizaciones sugeridas)
-
 class Pedido(models.Model):
     ESTADOS = (
         ('Pendiente', 'Pendiente de Pago (MP)'),
@@ -195,6 +194,7 @@ class Pedido(models.Model):
         ('Aprobado', 'Pago Aprobado'),
         ('Cancelado', 'Cancelado / Expirado'),
         ('Despachado', 'Pedido Despachado'),
+        ('Enviado', 'Pedido Enviado'), # Agregado por las dudas si lo usas en Envia
     )
     
     # Identificadores
@@ -205,14 +205,22 @@ class Pedido(models.Model):
     email_cliente = models.EmailField()
     telefono_cliente = models.CharField(max_length=20, null=True, blank=True)
 
-    # 👇 NUEVOS: Campos técnicos ocultos para la API de Envia.com
+    # Campos técnicos ocultos para la API de Envia.com
     envia_carrier = models.CharField(max_length=100, blank=True, null=True) # Ej: "correoargentino"
     envia_service = models.CharField(max_length=100, blank=True, null=True) # Ej: "estandar"
 
-    # 👇 NUEVO CAMPO: Guardará la dirección o si retira en el local
+    # Dirección original combinada
     direccion_envio = models.CharField(max_length=255, null=True, blank=True, verbose_name="Método/Dirección de Envío")
+    
+    # 👇 NUEVOS CAMPOS: Desglose de dirección para las etiquetas de Envia.com 👇
+    ciudad = models.CharField(max_length=100, blank=True, null=True)
+    provincia = models.CharField(max_length=100, blank=True, null=True)
+    codigo_postal = models.CharField(max_length=20, blank=True, null=True)
+    calle = models.CharField(max_length=150, blank=True, null=True)
+    numero = models.CharField(max_length=20, blank=True, null=True)
+    # 👆 FIN CAMPOS NUEVOS 👆
 
-    # 👇 Agregamos estos dos campos para tener el desglose claro
+    # Desglose de envíos
     costo_envio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Costo de Envío Cobrado")
     tipo_envio = models.CharField(max_length=255, blank=True, null=True, verbose_name="Tipo de Envío (Local/Envia.com)")
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
@@ -242,4 +250,3 @@ class PedidoItem(models.Model):
 
     def __str__(self):
         return f"{self.cantidad_metros}m de {self.nombre_producto} (Pedido #{self.pedido.id})"
-    
