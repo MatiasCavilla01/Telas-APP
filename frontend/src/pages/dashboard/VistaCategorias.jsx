@@ -39,7 +39,17 @@ const VistaCategorias = () => {
     setNombre(cat.nombre);
     setDescripcion(cat.descripcion || '');
     setCategoriaPadre(cat.categoria_padre || ''); 
-    setImages([]); 
+    
+    // 👇 NUEVA LÓGICA PARA LA IMAGEN
+    if (cat.imagen) {
+        // Si hay imagen en la BD, la cargamos como previsualización
+        setImages([{ file: null, preview: cat.imagen }]);
+    } else {
+        // Si no tiene imagen, lo dejamos vacío
+        setImages([]); 
+    }
+    // 👆 FIN NUEVA LÓGICA
+    
     setShowForm(true);
     setStatusMsg('');
   };
