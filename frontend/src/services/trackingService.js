@@ -3,7 +3,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://ignaciozurbriggen.pytho
 
 export const fetchTrackingStatus = async (trackingNumber) => {
     try {
-        const response = await fetch(`${API_URL}/rastrear/${trackingNumber}/`);
+        // MAGIA ACÁ: Le quitamos el /api si ya lo trae, para poder agregarlo nosotros de forma segura
+        const baseUrlLimpia = API_URL.replace(/\/api\/?$/, '').replace(/\/$/, ''); 
+        
+        // Armamos la ruta forzando que SIEMPRE tenga /api/rastrear/...
+        const response = await fetch(`${baseUrlLimpia}/api/rastrear/${trackingNumber}/`);
         
         if (!response.ok) {
             throw new Error('No se pudo encontrar información para este número de envío.');
