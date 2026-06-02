@@ -73,6 +73,8 @@ def calcular_costo_envio(codigo_postal_destino):
     dest_city = geo_data.get("city", "Cordoba") if geo_data else "Cordoba"
     dest_state = geo_data.get("state", "CB") if geo_data else "CB"
 
+    print(f"🌍 [TEST GEOCODES] CP Ingresado: {codigo_postal_destino} | Ciudad detectada: '{dest_city}' | Provincia: '{dest_state}'")
+
     payload = {
         "origin": {
             "name": config.title, "company": config.title, "email": "nachozubri15@gmail.com",
@@ -118,7 +120,7 @@ def calcular_costo_envio(codigo_postal_destino):
             return {"error": False, "tipo": "Larga Distancia", "opciones": lista_opciones}
         return {"error": True, "mensaje": "Envia.com no devolvió opciones de correo."}
     except Exception as e:
-        return {"error": True, "mensaje": str(e)}
+        return {"error": True, "mensaje": f"No hay sucursales para el CP {codigo_postal_destino} en la ciudad de {dest_city} ({dest_state})."}
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  2. BUSCAR SUCURSALES

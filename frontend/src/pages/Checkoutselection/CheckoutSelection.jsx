@@ -92,6 +92,8 @@ const CheckoutSelection = () => {
             });
 
             const data = await response.json();
+            // 👇 3. ESTE ES EL ESPÍA DEL FRONTEND (Aparecerá en la consola de Chrome F12) 👇
+            console.log(`🔍 [TEST SUCURSALES] Respuesta de la API para el CP ${comprador.codigoPostal}:`, data);
 
             if (data.error) {
                 setErrorCotizacion(data.mensaje || 'Error al cotizar');
