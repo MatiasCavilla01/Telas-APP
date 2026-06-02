@@ -139,7 +139,7 @@ const CheckoutSelection = () => {
     };
 
     // =========================================================
-    //  BUSCAR SUCURSALES CERCANAS (NUEVO)
+    //  BUSCAR SUCURSALES CERCANAS
     // =========================================================
     const handleBuscarSucursales = async () => {
         if (!comprador.codigoPostal || comprador.codigoPostal.trim() === '') {
@@ -166,15 +166,14 @@ const CheckoutSelection = () => {
                 return;
             }
 
-            // Se espera que el backend devuelva:
-            // { sucursales: [{ nombre, direccion, localidad, costo, carrier_code, service_code, tiempo_entrega }] }
+            // El backend ahora devuelve:
+            // { sucursales: [{ id_unico, nombre, direccion, localidad, codigo_postal,
+            //                  horario, proveedor, carrier_code, service_code,
+            //                  costo, tiempo_entrega }] }
             if (data.sucursales && data.sucursales.length > 0) {
-                const sucursalesConIds = data.sucursales.map((s, i) => ({
-                    ...s,
-                    id_unico: `suc-${s.carrier_code || 'ca'}-${i}`
-                }));
-                setSucursales(sucursalesConIds);
-                setSucursalSeleccionada(sucursalesConIds[0]);
+                // id_unico ya viene del backend; lo respetamos tal cual
+                setSucursales(data.sucursales);
+                setSucursalSeleccionada(data.sucursales[0]);
             } else {
                 setErrorSucursales('No hay sucursales cercanas disponibles para este código postal.');
             }
@@ -223,9 +222,16 @@ const CheckoutSelection = () => {
                 envia_carrier = null;
                 envia_service = null;
             } else if (tipoEnvioSeleccionado === 'sucursal') {
-                // Dirección de la sucursal elegida + datos del comprador para identificación
-                direccionFinal = `SUCURSAL: ${sucursalSeleccionada.nombre} - ${sucursalSeleccionada.direccion}, ${sucursalSeleccionada.localidad}`;
-                tipoEnvioFinal = `${sucursalSeleccionada.proveedor || sucursalSeleccionada.carrier_code} - Envío a Sucursal`;
+                // Construimos la dirección con todos los campos disponibles del backend
+                const partesDir = [
+                    sucursalSeleccionada.nombre,
+                    sucursalSeleccionada.direccion,
+                    sucursalSeleccionada.localidad,
+                    sucursalSeleccionada.codigo_postal ? `CP ${sucursalSeleccionada.codigo_postal}` : '',
+                    sucursalSeleccionada.horario ? `Horario: ${sucursalSeleccionada.horario}` : ''
+                ].filter(Boolean);
+                direccionFinal = `SUCURSAL: ${partesDir.join(' — ')}`;
+                tipoEnvioFinal = `${sucursalSeleccionada.proveedor || 'Correo Argentino'} - Envío a Sucursal`;
                 envia_carrier = sucursalSeleccionada.carrier_code || 'correoargentino';
                 envia_service = sucursalSeleccionada.service_code || 'estandar';
             } else {
@@ -489,12 +495,7 @@ const CheckoutSelection = () => {
                                                                     <div className="envio-logo" style={{ backgroundImage: `url(${getLogoUrl(opcion)})` }} />
                                                                     <div className="envio-info">
                                                                         <strong className="envio-proveedor">{opcion.proveedor}</strong>
-                                                                        <span className="envio-detalle">
-                                                                           {/* Agregamos un prefijo para clarificar */}
-                                                                           <strong>📍 Punto:</strong> {suc.nombre.includes('ASOC') ? 'Punto de entrega asociado' : 'Sucursal'}
-                                                                           <br />
-                                                                           {suc.direccion}, {suc.localidad}
-                                                                        </span>
+                                                                        <span className="envio-detalle">{nombreServicioLimpio} • {opcion.tiempo_entrega}</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="envio-card-right">
@@ -531,51 +532,94 @@ const CheckoutSelection = () => {
                                             )}
 
                                             {sucursales.length > 0 && (
-                                                <div className="envio-cards-container">
-                                                    <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 8px', fontWeight: 500 }}>
-                                                        Sucursales cercanas:
-                                                    </p>
+    <div className="envio-cards-container">
+        <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 8px', fontWeight: 500 }}>
+            Sucursales cercanas:
+        </p>
 
-                                                    {sucursales.map((suc) => {
-                                                        const estaSeleccionada = sucursalSeleccionada?.id_unico === suc.id_unico;
-                                                        return (
-                                                            <div
-                                                                key={suc.id_unico}
-                                                                className={`envio-card ${estaSeleccionada ? 'selected' : ''}`}
-                                                                onClick={() => setSucursalSeleccionada(suc)}
-                                                            >
-                                                                <div className="envio-card-left">
-                                                                    <div
-                                                                        className="envio-logo"
-                                                                        style={{ backgroundImage: `url(https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Correo_Argentino_logo.svg/512px-Correo_Argentino_logo.svg.png)` }}
-                                                                    />
-                                                                    <div className="envio-info">
-                                                                        <strong className="envio-proveedor">{suc.nombre}</strong>
-                                                                        <span className="envio-detalle">
-                                                                            📍 {suc.direccion}, {suc.localidad}
-                                                                        </span>
-                                                                        {suc.tiempo_entrega && (
-                                                                            <span className="envio-detalle" style={{ color: '#888' }}>
-                                                                                ⏱ {suc.tiempo_entrega}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="envio-card-right">
-                                                                    <div className="envio-precio">
-                                                                        {suc.costo > 0
-                                                                            ? `$${suc.costo.toLocaleString('es-AR')}`
-                                                                            : 'Gratis'}
-                                                                    </div>
-                                                                    <div className="envio-check">
-                                                                        {estaSeleccionada && <Check size={14} color="white" strokeWidth={3} />}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+        {sucursales.map((suc) => {
+            const estaSeleccionada = sucursalSeleccionada?.id_unico === suc.id_unico;
+            // Dirección completa: calle + localidad + CP
+            const dirCompleta = [
+                suc.direccion,
+                suc.localidad,
+                suc.codigo_postal ? `CP ${suc.codigo_postal}` : ''
+            ].filter(Boolean).join(', ');
+
+            return (
+                <div
+                    key={suc.id_unico}
+                    className={`envio-card ${estaSeleccionada ? 'selected' : ''}`}
+                    onClick={() => setSucursalSeleccionada(suc)}
+                >
+                    <div className="envio-card-left">
+                        <div
+                            className="envio-logo"
+                            style={{ backgroundImage: `url(https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Correo_Argentino_logo.svg/512px-Correo_Argentino_logo.svg.png)` }}
+                        />
+                        <div className="envio-info">
+                            <strong className="envio-proveedor">{suc.nombre}</strong>
+
+                            {dirCompleta && (
+                                <span className="envio-detalle">
+                                    📍 {dirCompleta}
+                                </span>
+                            )}
+
+                            {suc.horario && (
+                                <span className="envio-detalle" style={{ color: '#666' }}>
+                                    🕐 {suc.horario}
+                                </span>
+                            )}
+
+                            {suc.tiempo_entrega && (
+                                <span className="envio-detalle" style={{ color: '#888' }}>
+                                    ⏱ {suc.tiempo_entrega}
+                                </span>
+                            )}
+
+                            {/* Fallback: si la dirección está vacía, link al buscador oficial */}
+                            {!suc.direccion && (
+                                <a
+                                    href={`https://www.correoargentino.com.ar/formularios/sucursales?cp=${suc.codigo_postal || comprador.codigoPostal}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ fontSize: '0.75rem', color: '#1a6eb5', display: 'block', marginTop: '2px' }}
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    Ver sucursales en el mapa →
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                    <div className="envio-card-right">
+                        <div className="envio-precio">
+                            {suc.costo > 0
+                                ? `$${suc.costo.toLocaleString('es-AR')}`
+                                : 'Gratis'}
+                        </div>
+                        <div className="envio-check">
+                            {estaSeleccionada && <Check size={14} color="white" strokeWidth={3} />}
+                        </div>
+                    </div>
+                </div>
+            );
+        })}
+
+        {/* Nota informativa con link al localizador oficial */}
+        <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '10px', lineHeight: 1.5 }}>
+            ¿No encontrás tu sucursal?{' '}
+            <a
+                href={`https://www.correoargentino.com.ar/formularios/sucursales?cp=${comprador.codigoPostal}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#1a6eb5' }}
+            >
+                Buscá en el localizador oficial de Correo Argentino
+            </a>
+        </p>
+    </div>
+)}
                                         </>
                                     )}
                                 </div>
