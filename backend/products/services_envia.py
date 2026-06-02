@@ -1,16 +1,47 @@
 import requests
 import os
+import logging
 from .models import TarifaLocal, StoreConfiguration
 
+logger = logging.getLogger(__name__)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  HELPER: aplanar campos que Envia.com a veces devuelve como dict/lista/string
+# ─────────────────────────────────────────────────────────────────────────────
+def _str_field(value):
+    """
+    Convierte cualquier valor de la API a string legible.
+    Envia.com puede devolver {'name': ..., 'number': ...} en vez de un string.
+    """
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        partes = []
+        for key in ('name', 'street', 'address', 'reference', 'number'):
+            v = value.get(key)
+            if v and isinstance(v, str):
+                partes.append(v.strip())
+        return ' '.join(partes) if partes else ''
+    if isinstance(value, list):
+        return ', '.join(_str_field(item) for item in value if item)
+    return str(value).strip()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  COTIZAR ENVÍO A DOMICILIO
+# ─────────────────────────────────────────────────────────────────────────────
 def calcular_costo_envio(codigo_postal_destino):
     """
-    Calcula el costo de envío evaluando primero la tabla de comisionistas (TarifaLocal).
-    Si no hay cobertura, consulta la API de Envia.com usando el empaque estándar.
+    Evalúa primero la tabla de comisionistas (TarifaLocal).
+    Si no hay cobertura, consulta la API de Envia.com (type=1 = domicilio).
     """
 
-    # 1. Buscar en la base de datos de comisionistas locales
-    tarifa_local = TarifaLocal.objects.filter(codigo_postal=codigo_postal_destino, activo=True).first()
+    tarifa_local = TarifaLocal.objects.filter(
+        codigo_postal=codigo_postal_destino, activo=True
+    ).first()
 
     if tarifa_local:
         return {
@@ -20,7 +51,6 @@ def calcular_costo_envio(codigo_postal_destino):
             "costo": float(tarifa_local.costo_envio)
         }
 
-    # 2. Si no es local, buscamos las credenciales y medidas en StoreConfiguration
     config = StoreConfiguration.objects.filter(is_active=True).first()
 
     if not config or not config.api_key_envia:
@@ -29,7 +59,6 @@ def calcular_costo_envio(codigo_postal_destino):
             "mensaje": "La configuración de envíos o el Token de Envia.com no están definidos en el panel."
         }
 
-    # 3. Preparar la petición a la API de Envia.com
     base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
     endpoint = f"{base_url}/ship/rate"
 
@@ -38,7 +67,6 @@ def calcular_costo_envio(codigo_postal_destino):
         "Content-Type": "application/json"
     }
 
-    # 4. Armar el JSON (Payload)
     payload = {
         "origin": {
             "name": config.title,
@@ -91,7 +119,6 @@ def calcular_costo_envio(codigo_postal_destino):
         }
     }
 
-    # 5. Ejecutar la llamada a la API
     try:
         response = requests.post(endpoint, json=payload, headers=headers)
 
@@ -108,68 +135,50 @@ def calcular_costo_envio(codigo_postal_destino):
             lista_opciones = []
 
             for op in opciones_brutas:
-                # ---------------------------------------------------------
-                # BUG FIX: se extraen TODOS los campos de branches[0] para
-                # poder mostrar la dirección real de la sucursal en el front.
-                # Antes solo se tomaba 'reference' y se perdían nombre,
-                # calle, ciudad y CP de la sucursal.
-                # ---------------------------------------------------------
                 branches = op.get('branches') or []
                 sucursal_cercana = branches[0] if branches else None
 
-                sucursal_nombre    = ''
-                sucursal_direccion = ''
-                sucursal_localidad = ''
-                sucursal_cp        = ''
-                sucursal_horario   = ''
+                s_nombre    = ''
+                s_direccion = ''
+                s_localidad = ''
+                s_cp        = ''
+                s_horario   = ''
 
                 if sucursal_cercana:
-                    # Envia.com puede devolver distintos esquemas según carrier.
-                    # Intentamos los campos más comunes primero.
-                    sucursal_nombre    = (
-                        sucursal_cercana.get('name') or
-                        sucursal_cercana.get('alias') or
-                        sucursal_cercana.get('reference') or
-                        ''
+                    s_nombre = (
+                        _str_field(sucursal_cercana.get('name')) or
+                        _str_field(sucursal_cercana.get('alias')) or
+                        _str_field(sucursal_cercana.get('reference')) or ''
                     )
-                    sucursal_direccion = (
-                        sucursal_cercana.get('street') or
-                        sucursal_cercana.get('address') or
-                        sucursal_cercana.get('direction') or
-                        ''
+                    calle = (
+                        _str_field(sucursal_cercana.get('street')) or
+                        _str_field(sucursal_cercana.get('address')) or ''
                     )
-                    numero = sucursal_cercana.get('number') or sucursal_cercana.get('streetNumber') or ''
-                    if numero:
-                        sucursal_direccion = f"{sucursal_direccion} {numero}".strip()
-
-                    sucursal_localidad = (
-                        sucursal_cercana.get('city') or
-                        sucursal_cercana.get('locality') or
-                        sucursal_cercana.get('municipio') or
-                        ''
+                    numero = _str_field(sucursal_cercana.get('number') or sucursal_cercana.get('streetNumber'))
+                    s_direccion = f"{calle} {numero}".strip() if numero else calle
+                    s_localidad = (
+                        _str_field(sucursal_cercana.get('city')) or
+                        _str_field(sucursal_cercana.get('locality')) or ''
                     )
-                    sucursal_cp      = sucursal_cercana.get('postalCode') or sucursal_cercana.get('zipCode') or ''
-                    sucursal_horario = sucursal_cercana.get('schedule') or sucursal_cercana.get('businessHours') or ''
+                    s_cp      = _str_field(sucursal_cercana.get('postalCode') or sucursal_cercana.get('zipCode'))
+                    s_horario = _str_field(sucursal_cercana.get('schedule') or sucursal_cercana.get('businessHours'))
 
                 lista_opciones.append({
-                    "id": op.get('carrierId'),
-                    "proveedor": op.get('carrierDescription', 'Correo Nacional'),
-                    "servicio": op.get('serviceDescription', 'Estándar'),
-                    "costo": float(op.get('totalPrice', 0)),
+                    "id":           op.get('carrierId'),
+                    "proveedor":    op.get('carrierDescription', 'Correo Nacional'),
+                    "servicio":     op.get('serviceDescription', 'Estándar'),
+                    "costo":        float(op.get('totalPrice', 0)),
                     "tiempo_entrega": op.get('deliveryEstimate', 'Desconocido'),
                     "carrier_code": op.get('carrier', 'correoargentino').lower(),
                     "service_code": op.get('service', 'estandar').lower(),
-                    # Campos de sucursal ahora completos y correctamente mapeados
-                    "sucursal_nombre":    sucursal_nombre,
-                    "sucursal_direccion": sucursal_direccion,
-                    "sucursal_localidad": sucursal_localidad,
-                    "sucursal_cp":        sucursal_cp,
-                    "sucursal_horario":   sucursal_horario,
-                    # Mantenemos el campo legacy para no romper código existente
-                    "sucursal_direccion_completa": (
-                        f"{sucursal_nombre} — {sucursal_direccion}, {sucursal_localidad}"
-                        f"{' CP ' + sucursal_cp if sucursal_cp else ''}"
-                    ).strip(" —"),
+                    "sucursal_nombre":    s_nombre,
+                    "sucursal_direccion": s_direccion,
+                    "sucursal_localidad": s_localidad,
+                    "sucursal_cp":        s_cp,
+                    "sucursal_horario":   s_horario,
+                    "sucursal_direccion_completa": ' — '.join(
+                        p for p in [s_nombre, s_direccion, s_localidad, f"CP {s_cp}" if s_cp else ''] if p
+                    ),
                 })
 
             return {
@@ -179,17 +188,23 @@ def calcular_costo_envio(codigo_postal_destino):
             }
 
         else:
-            return {"error": True, "mensaje": "Envia.com no devolvió opciones de correo.", "detalle": response_data}
+            return {
+                "error": True,
+                "mensaje": "Envia.com no devolvió opciones de correo.",
+                "detalle": response_data
+            }
 
     except Exception as e:
         return {"error": True, "mensaje": f"Error interno del servidor Django: {str(e)}"}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  BUSCAR SUCURSALES CERCANAS  (shipment.type = 2)
+# ─────────────────────────────────────────────────────────────────────────────
 def buscar_sucursales_cercanas(codigo_postal_destino):
     """
-    Consulta Envia.com con shipment.type=2 (entrega en sucursal) para obtener
-    las sucursales de Correo Argentino más cercanas al CP del comprador.
-    Devuelve una lista normalizada con todos los campos necesarios para el frontend.
+    Consulta Envia.com con type=2 (pick-up en sucursal) y devuelve una lista
+    normalizada lista para el frontend, con todos los campos como strings limpios.
     """
     config = StoreConfiguration.objects.filter(is_active=True).first()
 
@@ -254,9 +269,8 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
             }
         ],
         "shipment": {
-            # type=2 indica entrega en sucursal (pick-up point) en Envia.com
             "carrier": "correoargentino",
-            "type": 2
+            "type": 2   # 2 = entrega en sucursal
         }
     }
 
@@ -271,73 +285,90 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
 
         response_data = response.json()
 
+        # ── DEBUG: loguear la respuesta cruda para inspeccionar la estructura
+        # de 'branches' y poder ajustar el mapeo si cambia la API
+        logger.debug("Envia.com /ship/rate type=2 response: %s", response_data)
+
         if not response_data.get('data'):
             return {"error": True, "mensaje": "Envia.com no devolvió sucursales para este CP."}
 
         sucursales_resultado = []
 
-        for op in response_data['data']:
-            branches = op.get('branches') or []
+        for op_idx, op in enumerate(response_data['data']):
+            branches      = op.get('branches') or []
             carrier_code  = op.get('carrier', 'correoargentino').lower()
             service_code  = op.get('service', 'estandar').lower()
             costo_base    = float(op.get('totalPrice', 0))
             tiempo_entrega = op.get('deliveryEstimate', 'Desconocido')
-            proveedor      = op.get('carrierDescription', 'Correo Argentino')
+            proveedor     = op.get('carrierDescription', 'Correo Argentino')
 
             if branches:
-                # Cada sucursal en branches es una opción independiente
                 for idx, branch in enumerate(branches):
-                    nombre    = (
-                        branch.get('name') or
-                        branch.get('alias') or
-                        branch.get('reference') or
+                    # ── DEBUG: loguear cada branch crudo para diagnosticar
+                    # exactamente qué campos devuelve Envia.com
+                    logger.debug("Branch[%d][%d] raw: %s", op_idx, idx, branch)
+
+                    # Usamos _str_field() porque Envia puede devolver dicts
+                    # en campos que deberían ser strings (p.ej. 'street')
+                    nombre = (
+                        _str_field(branch.get('name')) or
+                        _str_field(branch.get('alias')) or
+                        _str_field(branch.get('reference')) or
                         f"Sucursal {idx + 1}"
                     )
-                    calle     = branch.get('street') or branch.get('address') or branch.get('direction') or ''
-                    numero_b  = branch.get('number') or branch.get('streetNumber') or ''
-                    direccion = f"{calle} {numero_b}".strip() if numero_b else calle
-                    localidad = (
-                        branch.get('city') or
-                        branch.get('locality') or
-                        branch.get('municipio') or
+                    calle = (
+                        _str_field(branch.get('street')) or
+                        _str_field(branch.get('address')) or
+                        _str_field(branch.get('direction')) or
                         ''
                     )
-                    cp        = branch.get('postalCode') or branch.get('zipCode') or str(codigo_postal_destino)
-                    horario   = branch.get('schedule') or branch.get('businessHours') or ''
-                    lat       = branch.get('lat') or branch.get('latitude') or ''
-                    lng       = branch.get('lng') or branch.get('longitude') or ''
+                    numero_b  = _str_field(branch.get('number') or branch.get('streetNumber'))
+                    direccion = f"{calle} {numero_b}".strip() if numero_b else calle
+
+                    localidad = (
+                        _str_field(branch.get('city')) or
+                        _str_field(branch.get('locality')) or
+                        _str_field(branch.get('municipio')) or
+                        ''
+                    )
+                    cp      = _str_field(branch.get('postalCode') or branch.get('zipCode')) or str(codigo_postal_destino)
+                    horario = _str_field(branch.get('schedule') or branch.get('businessHours'))
+                    lat     = _str_field(branch.get('lat') or branch.get('latitude'))
+                    lng     = _str_field(branch.get('lng') or branch.get('longitude'))
 
                     sucursales_resultado.append({
-                        "id_unico":        f"suc-{carrier_code}-{idx}",
-                        "nombre":          nombre,
-                        "direccion":       direccion,
-                        "localidad":       localidad,
-                        "codigo_postal":   cp,
-                        "horario":         horario,
-                        "lat":             lat,
-                        "lng":             lng,
-                        "proveedor":       proveedor,
-                        "carrier_code":    carrier_code,
-                        "service_code":    service_code,
-                        "costo":           costo_base,
-                        "tiempo_entrega":  tiempo_entrega,
+                        # op_idx + idx = clave única incluso con múltiples
+                        # opciones del mismo carrier
+                        "id_unico":      f"suc-{carrier_code}-{op_idx}-{idx}",
+                        "nombre":        nombre,
+                        "direccion":     direccion,
+                        "localidad":     localidad,
+                        "codigo_postal": cp,
+                        "horario":       horario,
+                        "lat":           lat,
+                        "lng":           lng,
+                        "proveedor":     proveedor,
+                        "carrier_code":  carrier_code,
+                        "service_code":  service_code,
+                        "costo":         costo_base,
+                        "tiempo_entrega": tiempo_entrega,
                     })
             else:
-                # Sin branches: mostramos la opción genérica de sucursal
+                # Sin branches: opción genérica con link al localizador oficial
                 sucursales_resultado.append({
-                    "id_unico":        f"suc-{carrier_code}-0",
-                    "nombre":          proveedor,
-                    "direccion":       "Ver sucursales en correoargentino.com.ar",
-                    "localidad":       "",
-                    "codigo_postal":   str(codigo_postal_destino),
-                    "horario":         "",
-                    "lat":             "",
-                    "lng":             "",
-                    "proveedor":       proveedor,
-                    "carrier_code":    carrier_code,
-                    "service_code":    service_code,
-                    "costo":           costo_base,
-                    "tiempo_entrega":  tiempo_entrega,
+                    "id_unico":      f"suc-{carrier_code}-{op_idx}-0",
+                    "nombre":        proveedor,
+                    "direccion":     "",
+                    "localidad":     "",
+                    "codigo_postal": str(codigo_postal_destino),
+                    "horario":       "",
+                    "lat":           "",
+                    "lng":           "",
+                    "proveedor":     proveedor,
+                    "carrier_code":  carrier_code,
+                    "service_code":  service_code,
+                    "costo":         costo_base,
+                    "tiempo_entrega": tiempo_entrega,
                 })
 
         if not sucursales_resultado:
@@ -346,9 +377,13 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
         return {"error": False, "sucursales": sucursales_resultado}
 
     except Exception as e:
+        logger.exception("Error en buscar_sucursales_cercanas")
         return {"error": True, "mensaje": f"Error interno del servidor Django: {str(e)}"}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  RASTREAR ENVÍOS
+# ─────────────────────────────────────────────────────────────────────────────
 def rastrear_envios(tracking_numbers):
     """
     Consulta el estado de uno o más envíos en la API de Envia.com.

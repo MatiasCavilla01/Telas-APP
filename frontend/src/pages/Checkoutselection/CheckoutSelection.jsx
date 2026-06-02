@@ -539,11 +539,21 @@ const CheckoutSelection = () => {
 
         {sucursales.map((suc) => {
             const estaSeleccionada = sucursalSeleccionada?.id_unico === suc.id_unico;
+
+            // Defensa: Envia.com a veces devuelve campos como objeto en vez de string.
+            // Este helper garantiza que nunca se renderice [object Object].
+            const toStr = (v) => {
+                if (!v) return '';
+                if (typeof v === 'string') return v;
+                if (typeof v === 'object') return Object.values(v).filter(Boolean).join(' ');
+                return String(v);
+            };
+
             // Dirección completa: calle + localidad + CP
             const dirCompleta = [
-                suc.direccion,
-                suc.localidad,
-                suc.codigo_postal ? `CP ${suc.codigo_postal}` : ''
+                toStr(suc.direccion),
+                toStr(suc.localidad),
+                suc.codigo_postal ? `CP ${toStr(suc.codigo_postal)}` : ''
             ].filter(Boolean).join(', ');
 
             return (
