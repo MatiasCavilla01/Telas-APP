@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from django.db import transaction
 from django.shortcuts import redirect
 from django.core.mail import send_mail
-from .services_envia import calcular_costo_envio, rastrear_envios
+from .services_envia import buscar_sucursales_cercanas, calcular_costo_envio, rastrear_envios
 from django.shortcuts import redirect, get_object_or_404
 from django.db.models import Sum
 from django.http import JsonResponse
@@ -1006,3 +1006,15 @@ class RastrearPedidoView(APIView):
 class TarifaLocalViewSet(viewsets.ModelViewSet):
     queryset = TarifaLocal.objects.all().order_by('localidad')
     serializer_class = TarifaLocalSerializer
+
+@api_view(['POST'])
+def buscar_sucursales_api(request):
+    codigo_postal = request.data.get('codigo_postal')
+    if not codigo_postal:
+        return Response({"error": True, "mensaje": "Debes enviar un código postal."}, status=400)
+    
+    resultado = buscar_sucursales_cercanas(codigo_postal)
+    
+    if resultado.get("error"):
+        return Response(resultado, status=400)
+    return Response(resultado, status=200)
