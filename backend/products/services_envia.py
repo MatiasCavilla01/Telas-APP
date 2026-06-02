@@ -200,187 +200,66 @@ def calcular_costo_envio(codigo_postal_destino):
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  BUSCAR SUCURSALES CERCANAS  (shipment.type = 2)
-# ─────────────────────────────────────────────────────────────────────────────
 def buscar_sucursales_cercanas(codigo_postal_destino):
-    """
-    Consulta Envia.com con type=2 (pick-up en sucursal) y devuelve una lista
-    normalizada lista para el frontend, con todos los campos como strings limpios.
-    """
     config = StoreConfiguration.objects.filter(is_active=True).first()
-
     if not config or not config.api_key_envia:
-        return {
-            "error": True,
-            "mensaje": "La configuración de envíos o el Token de Envia.com no están definidos en el panel."
-        }
+        return {"error": True, "mensaje": "Configuración no encontrada."}
 
     base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
     endpoint = f"{base_url}/ship/rate"
 
-    headers = {
-        "Authorization": f"Bearer {config.api_key_envia}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
 
     payload = {
         "origin": {
-            "name": config.title,
-            "company": config.title,
-            "email": "nachozubri15@gmail.com",
-            "phone": config.telefono or "3562517046",
-            "street": "Urquiza",
-            "number": "70",
-            "district": "",
-            "city": "San Guillermo",
-            "state": "SF",
-            "country": "AR",
-            "postalCode": "2347",
-            "reference": ""
+            "name": config.title, "company": config.title, "email": "nachozubri15@gmail.com",
+            "phone": config.telefono or "3562517046", "street": "Urquiza", "number": "70",
+            "city": "San Guillermo", "state": "SF", "country": "AR", "postalCode": "2347"
         },
         "destination": {
-            "name": "Cliente Web",
-            "company": "",
-            "email": "nachozubri15@gmail.com",
-            "phone": "3562517046",
-            "street": "",
-            "number": "",
-            "district": "",
-            "city": "",
-            "state": "",
             "country": "AR",
-            "postalCode": str(codigo_postal_destino),
-            "reference": ""
+            "postalCode": str(codigo_postal_destino), # ⚠️ MANTENEMOS EL CP DESTINO
+            "city": "", # Dejamos vacío para que el carrier busque por CP
+            "state": "" 
         },
-        "packages": [
-            {
-                "content": "Telas y Textiles",
-                "amount": 1,
-                "type": "box",
-                "weight": float(config.peso_estandar),
-                "insurance": 0,
-                "declaredValue": 0,
-                "weightUnit": "KG",
-                "lengthUnit": "CM",
-                "dimensions": {
-                    "length": config.largo_estandar,
-                    "width": config.ancho_estandar,
-                    "height": config.alto_estandar
-                }
-            }
-        ],
-        "shipment": {
-            "carrier": "correoargentino",
-            "type": 2   # 2 = entrega en sucursal
-        }
+        "packages": [{
+            "content": "Telas", "amount": 1, "type": "box",
+            "weight": float(config.peso_estandar), "weightUnit": "KG", "lengthUnit": "CM",
+            "dimensions": {"length": config.largo_estandar, "width": config.ancho_estandar, "height": config.alto_estandar}
+        }],
+        "shipment": {"carrier": "correoargentino", "type": 2} # Type 2 = Sucursal
     }
 
     try:
         response = requests.post(endpoint, json=payload, headers=headers)
-
         if response.status_code != 200:
-            return {
-                "error": True,
-                "mensaje": f"Fallo al buscar sucursales (HTTP {response.status_code})."
-            }
-
+            return {"error": True, "mensaje": "Error en la API de Envia."}
+        
         response_data = response.json()
-
-        # ── DEBUG: loguear la respuesta cruda para inspeccionar la estructura
-        # de 'branches' y poder ajustar el mapeo si cambia la API
-        logger.debug("Envia.com /ship/rate type=2 response: %s", response_data)
-
         if not response_data.get('data'):
-            return {"error": True, "mensaje": "Envia.com no devolvió sucursales para este CP."}
+            return {"error": True, "mensaje": "No hay sucursales para este CP."}
 
         sucursales_resultado = []
-
-        for op_idx, op in enumerate(response_data['data']):
-            branches      = op.get('branches') or []
-            carrier_code  = op.get('carrier', 'correoargentino').lower()
-            service_code  = op.get('service', 'estandar').lower()
-            costo_base    = float(op.get('totalPrice', 0))
-            tiempo_entrega = op.get('deliveryEstimate', 'Desconocido')
-            proveedor     = op.get('carrierDescription', 'Correo Argentino')
-
-            if branches:
-                for idx, branch in enumerate(branches):
-                    # ── DEBUG: loguear cada branch crudo para diagnosticar
-                    # exactamente qué campos devuelve Envia.com
-                    logger.debug("Branch[%d][%d] raw: %s", op_idx, idx, branch)
-
-                    # Usamos _str_field() porque Envia puede devolver dicts
-                    # en campos que deberían ser strings (p.ej. 'street')
-                    nombre = (
-                        _str_field(branch.get('name')) or
-                        _str_field(branch.get('alias')) or
-                        _str_field(branch.get('reference')) or
-                        f"Sucursal {idx + 1}"
-                    )
-                    calle = (
-                        _str_field(branch.get('street')) or
-                        _str_field(branch.get('address')) or
-                        _str_field(branch.get('direction')) or
-                        ''
-                    )
-                    numero_b  = _str_field(branch.get('number') or branch.get('streetNumber'))
-                    direccion = f"{calle} {numero_b}".strip() if numero_b else calle
-
-                    localidad = (
-                        _str_field(branch.get('city')) or
-                        _str_field(branch.get('locality')) or
-                        _str_field(branch.get('municipio')) or
-                        ''
-                    )
-                    cp      = _str_field(branch.get('postalCode') or branch.get('zipCode')) or str(codigo_postal_destino)
-                    horario = _str_field(branch.get('schedule') or branch.get('businessHours'))
-                    lat     = _str_field(branch.get('lat') or branch.get('latitude'))
-                    lng     = _str_field(branch.get('lng') or branch.get('longitude'))
-
-                    sucursales_resultado.append({
-                        # op_idx + idx = clave única incluso con múltiples
-                        # opciones del mismo carrier
-                        "id_unico":      f"suc-{carrier_code}-{op_idx}-{idx}",
-                        "nombre":        nombre,
-                        "direccion":     direccion,
-                        "localidad":     localidad,
-                        "codigo_postal": cp,
-                        "horario":       horario,
-                        "lat":           lat,
-                        "lng":           lng,
-                        "proveedor":     proveedor,
-                        "carrier_code":  carrier_code,
-                        "service_code":  service_code,
-                        "costo":         costo_base,
-                        "tiempo_entrega": tiempo_entrega,
-                    })
-            else:
-                # Sin branches: opción genérica con link al localizador oficial
+        for op in response_data['data']:
+            # ⚠️ AQUÍ ESTÁ EL CAMBIO: Iteramos sobre los branches que la API devuelve para ESTE CP
+            for branch in op.get('branches', []):
                 sucursales_resultado.append({
-                    "id_unico":      f"suc-{carrier_code}-{op_idx}-0",
-                    "nombre":        proveedor,
-                    "direccion":     "",
-                    "localidad":     "",
-                    "codigo_postal": str(codigo_postal_destino),
-                    "horario":       "",
-                    "lat":           "",
-                    "lng":           "",
-                    "proveedor":     proveedor,
-                    "carrier_code":  carrier_code,
-                    "service_code":  service_code,
-                    "costo":         costo_base,
-                    "tiempo_entrega": tiempo_entrega,
+                    "id_unico": f"{branch.get('id', 'branch')}-{op.get('carrier')}",
+                    "nombre": _str_field(branch.get('name') or branch.get('alias')),
+                    "direccion": f"{_str_field(branch.get('street'))} {_str_field(branch.get('number'))}",
+                    "localidad": _str_field(branch.get('city')),
+                    "codigo_postal": _str_field(branch.get('postalCode')),
+                    "horario": _str_field(branch.get('schedule')),
+                    "proveedor": op.get('carrierDescription', 'Correo Argentino'),
+                    "carrier_code": op.get('carrier', 'correoargentino'),
+                    "service_code": op.get('service', 'estandar'),
+                    "costo": float(op.get('totalPrice', 0)),
+                    "tiempo_entrega": op.get('deliveryEstimate', '3-5 días')
                 })
-
-        if not sucursales_resultado:
-            return {"error": True, "mensaje": "No hay sucursales disponibles para este código postal."}
-
+        
         return {"error": False, "sucursales": sucursales_resultado}
-
     except Exception as e:
-        logger.exception("Error en buscar_sucursales_cercanas")
-        return {"error": True, "mensaje": f"Error interno del servidor Django: {str(e)}"}
-
-
+        return {"error": True, "mensaje": str(e)}
 # ─────────────────────────────────────────────────────────────────────────────
 #  RASTREAR ENVÍOS
 # ─────────────────────────────────────────────────────────────────────────────
