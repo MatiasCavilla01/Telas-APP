@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Header from '../../components/Header';
 import Card from '../../components/Card';
+import { ChromePicker } from 'react-color';
 import { Icon, icons } from '../../components/Icons';
 
 const API = import.meta.env.VITE_API_URL + '/api';
@@ -52,6 +53,7 @@ const VistaDiseno = () => {
   const [colores, setColores] = useState([]);
   const [nuevoColor, setNuevoColor] = useState({ nombre: '', codigo_hex: '#6366f1' });
   const [loadingColor, setLoadingColor] = useState(false);
+  const [mostrarPicker, setMostrarPicker] = useState(false);
 
   // 👇 NUEVO: ESTADOS PARA USOS (TELAS PARA...) 👇
   const [usos, setUsos] = useState([]);
@@ -196,9 +198,36 @@ const VistaDiseno = () => {
              <div style={{ flex: 1, minWidth: '150px' }}>
                 <input value={nuevoColor.nombre} onChange={e => setNuevoColor({...nuevoColor, nombre: e.target.value})} placeholder="Ej: Verde Oliva" style={{ ...inputStyle, marginBottom: 0 }} />
              </div>
-             <div style={{ width: '100px', display: 'flex', alignItems: 'center', gap: 6, ...inputStyle, marginBottom: 0, padding: '7px 8px' }}>
-                 <input type="color" value={nuevoColor.codigo_hex} onChange={e => setNuevoColor({...nuevoColor, codigo_hex: e.target.value})} style={{ border: 'none', padding: 0, width: 26, height: 26, cursor: 'pointer', background: 'transparent', borderRadius: '50%' }} />
+             
+             {/* 👇 INICIO DEL NUEVO SELECTOR DE COLOR 👇 */}
+             <div style={{ width: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', ...inputStyle, marginBottom: 0, padding: '7px 8px', position: 'relative' }}>
+                <div 
+                    onClick={() => setMostrarPicker(!mostrarPicker)}
+                    style={{ 
+                        width: 26, 
+                        height: 26, 
+                        cursor: 'pointer', 
+                        backgroundColor: nuevoColor.codigo_hex, 
+                        borderRadius: '50%',
+                        boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
+                    }} 
+                />
+                {mostrarPicker && (
+                    <div style={{ position: 'absolute', zIndex: 10, top: '110%', left: 0 }}>
+                        <div 
+                            style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }} 
+                            onClick={() => setMostrarPicker(false)} 
+                        />
+                        <ChromePicker 
+                            color={nuevoColor.codigo_hex} 
+                            onChange={(color) => setNuevoColor({...nuevoColor, codigo_hex: color.hex})}
+                            disableAlpha={true}
+                        />
+                    </div>
+                )}
              </div>
+             {/* 👆 FIN DEL NUEVO SELECTOR DE COLOR 👆 */}
+
              <button onClick={handleAddColor} disabled={loadingColor} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, cursor: 'pointer', height: 42 }}>{loadingColor ? '...' : 'Añadir'}</button>
           </div>
 
