@@ -64,7 +64,7 @@ def calcular_costo_envio(codigo_postal_destino):
     if not config or not config.api_key_envia:
         return {"error": True, "mensaje": "Token de Envia no definido."}
 
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/rate"
     headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
 
@@ -131,7 +131,7 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     if not config or not config.api_key_envia:
         return {"error": True, "mensaje": "Token no definido."}
 
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/rate"
     headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
 
@@ -212,7 +212,7 @@ def rastrear_envios(tracking_numbers):
     if not config or not config.api_key_envia:
         return {"error": True, "mensaje": "Token de Envia no definido."}
 
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
+    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/generaltrack/"
     headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
 
