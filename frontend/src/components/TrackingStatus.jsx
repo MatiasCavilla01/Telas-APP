@@ -13,9 +13,15 @@ const TrackingStatus = ({ trackingNumber }) => {
             setLoading(true);
             setError(null);
             try {
-                const data = await fetchTrackingStatus(trackingNumber);
-                if (data && data.length > 0) {
-                    setStatusData(data[0]); 
+                // Obtenemos la respuesta cruda de tu backend
+                const response = await fetchTrackingStatus(trackingNumber);
+                
+                // 💡 ACÁ ESTÁ LA MAGIA: Le decimos que busque adentro de "data" si existe
+                const arrayResultados = response.data ? response.data : response;
+
+                // Ahora sí podemos medir el length, porque arrayResultados es una lista real
+                if (arrayResultados && arrayResultados.length > 0) {
+                    setStatusData(arrayResultados[0]); 
                 } else {
                     setError("No se encontraron registros con ese número de seguimiento.");
                 }
