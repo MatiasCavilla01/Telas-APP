@@ -8,7 +8,7 @@ import requests
 import os
 # revisar luego si todos los import son necesarios o si quedaron algunos de pruebas anteriores
 from .models import Producto, StoreConfiguration, Categoria, ProductoImagen, PagoProcesado, Pedido, PedidoItem, TarifaLocal, Color, UsoTela
-from .serializers import CategoriaSerializer, ProductoDesplegableSerializer, StoreConfigurationSerializer, Producto, UsoTelaSerializer
+from .serializers import CategoriaSerializer, ProductoDesplegableSerializer, StoreConfigurationSerializer, Producto, UsoTelaSerializer, TarifaLocalSerializer
 from .serializers import ProductoDesplegableSerializer, TarifaLocalSerializer, ColorSerializer, ProductoSerializer, ProductoImagenSerializer, PedidoSerializer
 from decimal import Decimal
 from rest_framework import status, viewsets, generics
