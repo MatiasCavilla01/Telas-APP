@@ -356,10 +356,40 @@ const CheckoutSelection = () => {
                                             type="text" name="ciudad" placeholder="Ciudad / Localidad"
                                             value={comprador.ciudad} onChange={handleInputChange} required
                                         />
-                                        <input
-                                            type="text" name="provincia" placeholder="Provincia"
-                                            value={comprador.provincia} onChange={handleInputChange} required
-                                        />
+                                        {/* --- DROPDOWN DE PROVINCIAS --- */}
+                                        <select
+                                            name="provincia"
+                                            value={comprador.provincia}
+                                            onChange={handleInputChange}
+                                            required
+                                            className="provincia-select"
+                                        >
+                                            <option value="" disabled>Seleccioná tu provincia</option>
+                                            <option value="BA">Buenos Aires</option>
+                                            <option value="CABA">Capital Federal (CABA)</option>
+                                            <option value="CA">Catamarca</option>
+                                            <option value="CH">Chaco</option>
+                                            <option value="CU">Chubut</option>
+                                            <option value="CB">Córdoba</option>
+                                            <option value="CR">Corrientes</option>
+                                            <option value="ER">Entre Ríos</option>
+                                            <option value="FO">Formosa</option>
+                                            <option value="JY">Jujuy</option>
+                                            <option value="LP">La Pampa</option>
+                                            <option value="LR">La Rioja</option>
+                                            <option value="MZ">Mendoza</option>
+                                            <option value="MI">Misiones</option>
+                                            <option value="NQ">Neuquén</option>
+                                            <option value="RN">Río Negro</option>
+                                            <option value="SA">Salta</option>
+                                            <option value="SJ">San Juan</option>
+                                            <option value="SL">San Luis</option>
+                                            <option value="SC">Santa Cruz</option>
+                                            <option value="SF">Santa Fe</option>
+                                            <option value="SE">Santiago del Estero</option>
+                                            <option value="TF">Tierra del Fuego</option>
+                                            <option value="TU">Tucumán</option>
+                                        </select>
 
                                         {/* CP + Botón Calcular */}
                                         <div className="full-width" style={{ display: 'flex', gap: '10px', width: '100%', minWidth: 0 }}>
@@ -459,7 +489,12 @@ const CheckoutSelection = () => {
                                                                     <div className="envio-logo" style={{ backgroundImage: `url(${getLogoUrl(opcion)})` }} />
                                                                     <div className="envio-info">
                                                                         <strong className="envio-proveedor">{opcion.proveedor}</strong>
-                                                                        <span className="envio-detalle">{nombreServicioLimpio} • {opcion.tiempo_entrega}</span>
+                                                                        <span className="envio-detalle">
+                                                                           {/* Agregamos un prefijo para clarificar */}
+                                                                           <strong>📍 Punto:</strong> {suc.nombre.includes('ASOC') ? 'Punto de entrega asociado' : 'Sucursal'}
+                                                                           <br />
+                                                                           {suc.direccion}, {suc.localidad}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="envio-card-right">

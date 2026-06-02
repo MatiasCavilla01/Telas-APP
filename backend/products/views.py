@@ -623,6 +623,8 @@ def cotizar_envio_api(request):
         return Response(resultado, status=400)
         
     return Response(resultado, status=200)
+
+
 @api_view(['POST'])
 #@permission_classes([IsAdminUser])
 def generar_etiqueta_envio_view(request, pedido_id):
@@ -658,23 +660,26 @@ def generar_etiqueta_envio_view(request, pedido_id):
             "postalCode": "2347"       
         },
         "destination": {
-            "name": pedido.nombre_cliente,
+            # Limitadores de seguridad obligatorios de Envia.com
+            "name": str(pedido.nombre_cliente)[:30], 
             "company": "",
             "email": pedido.email_cliente,
             "phone": pedido.telefono_cliente or "3510000000",
             
-            # Usamos la calle y número reales, con un fallback por si están vacíos
-            "street": getattr(pedido, 'calle', '') or pedido.direccion_envio[:50], 
-            "number": getattr(pedido, 'numero', '') or "1", 
+            "street": str(getattr(pedido, 'calle', '') or pedido.direccion_envio)[:40], 
+            "number": str(getattr(pedido, 'numero', '') or "1")[:10], 
             "district": "",
             
-            # Ahora sí tomará los datos reales de Balnearia o cualquier ciudad
-            "city": getattr(pedido, 'ciudad', 'Ciudad Desconocida') or 'Ciudad Desconocida', 
-            "state": getattr(pedido, 'provincia', 'SF') or 'SF',
-            "country": "AR",
-            "postalCode": str(getattr(pedido, 'codigo_postal', '0000')) or "0000",
+            "city": str(getattr(pedido, 'ciudad', 'Ciudad Desconocida'))[:30], 
             
-            "reference": f"Entregar en: {pedido.direccion_envio}" 
+            # ACÁ ESTÁ LA MAGIA DEL DROPDOWN: Ya viene limpio como "CB", "SF", "BA"
+            "state": str(getattr(pedido, 'provincia', 'SF'))[:30], 
+            
+            "country": "AR",
+            "postalCode": str(getattr(pedido, 'codigo_postal', '0000'))[:10] or "0000",
+            
+            # EVITA EL ERROR 400 DE CORREO ARGENTINO
+            "reference": str(pedido.direccion_envio)[:30] 
         },
         "packages": [
             {
