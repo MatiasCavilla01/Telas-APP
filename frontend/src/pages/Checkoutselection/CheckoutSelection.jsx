@@ -558,7 +558,7 @@ const CheckoutSelection = () => {
 
             return (
                 <div
-                    key={suc.id_unico}
+                   div key={`${suc.id_unico}-${index}`}
                     className={`envio-card ${estaSeleccionada ? 'selected' : ''}`}
                     onClick={() => setSucursalSeleccionada(suc)}
                 >

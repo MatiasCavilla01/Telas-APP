@@ -42,12 +42,19 @@ def obtener_datos_geograficos(codigo_postal):
         if response.status_code == 200:
             res_data = response.json()
             if res_data.get("success") and "data" in res_data:
-                return res_data["data"]
+                data = res_data["data"]
+                
+                # 🛡️ DEFENSA: Si Envia.com devuelve una lista, tomamos el primer resultado
+                if isinstance(data, list) and len(data) > 0:
+                    return data[0]
+                # Si devuelve un diccionario directo, lo pasamos tal cual
+                elif isinstance(data, dict):
+                    return data
+                    
     except Exception as e:
         logger.error(f"Error consultando Geocodes API: {e}")
     
     return None
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  1. COTIZAR ENVÍO A DOMICILIO (TYPE 1)
 # ─────────────────────────────────────────────────────────────────────────────
