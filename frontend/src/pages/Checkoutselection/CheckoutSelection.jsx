@@ -158,7 +158,11 @@ const CheckoutSelection = () => {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/envio/sucursales/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codigo_postal: comprador.codigoPostal })
+                body: JSON.stringify({ 
+        codigo_postal: comprador.codigoPostal,
+        provincia: comprador.provincia,
+        ciudad: comprador.ciudad
+    })
             });
 
             const data = await response.json();
