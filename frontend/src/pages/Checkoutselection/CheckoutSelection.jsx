@@ -31,6 +31,7 @@ const CheckoutSelection = () => {
     const [isLoadingSucursales, setIsLoadingSucursales] = useState(false);
     const [errorSucursales, setErrorSucursales] = useState('');
     // 'domicilio' | 'sucursal'
+    // TEMPORALMENTE FORZADO A 'domicilio' (comentar esta línea para reactivar sucursales)
     const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState('domicilio');
 
     const [comprador, setComprador] = useState({
@@ -404,10 +405,11 @@ const CheckoutSelection = () => {
                                                 value={comprador.codigoPostal} onChange={handleInputChange}
                                                 required style={{ flex: 1, minWidth: 0 }}
                                             />
+                                            {/* 🔴 SIMPLIFICADO: Ahora solo ejecuta handleCotizarDomicilio (sucursales deshabilitadas) */}
                                             <button
                                                 type="button"
-                                                onClick={tipoEnvioSeleccionado === 'domicilio' ? handleCotizarDomicilio : handleBuscarSucursales}
-                                                disabled={(tipoEnvioSeleccionado === 'domicilio' ? isLoadingCotizacion : isLoadingSucursales) || !comprador.codigoPostal}
+                                                onClick={handleCotizarDomicilio}
+                                                disabled={isLoadingCotizacion || !comprador.codigoPostal}
                                                 style={{
                                                     backgroundColor: '#1A1A1A', color: 'white', border: 'none',
                                                     padding: '0 15px', borderRadius: '6px', cursor: 'pointer',
@@ -415,14 +417,14 @@ const CheckoutSelection = () => {
                                                     textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap'
                                                 }}
                                             >
-                                                {(tipoEnvioSeleccionado === 'domicilio' ? isLoadingCotizacion : isLoadingSucursales)
-                                                    ? '...'
-                                                    : 'Calcular'}
+                                                {isLoadingCotizacion ? '...' : 'Calcular'}
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* --- Tabs: Domicilio vs Sucursal --- */}
+                                    {/* 🔴 COMENTADO TEMPORALMENTE: Se ocultó la selección de sucursales para simplificar el flujo */}
+                                    {/* 
                                     <div style={{
                                         display: 'flex', gap: '8px', marginTop: '18px', marginBottom: '4px'
                                     }}>
@@ -465,6 +467,7 @@ const CheckoutSelection = () => {
                                             <Building2 size={14} /> A sucursal
                                         </button>
                                     </div>
+                                    */}
 
                                     {/* ========== ENVÍO A DOMICILIO ========== */}
                                     {tipoEnvioSeleccionado === 'domicilio' && (
@@ -513,6 +516,8 @@ const CheckoutSelection = () => {
                                     )}
 
                                     {/* ========== ENVÍO A SUCURSAL ========== */}
+                                    {/* 🔴 COMENTADO TEMPORALMENTE: Se ocultó la sección completa de búsqueda de sucursales */}
+                                    {/* 
                                     {tipoEnvioSeleccionado === 'sucursal' && (
                                         <>
                                             <p style={{ fontSize: '0.8rem', color: '#777', marginTop: '8px', lineHeight: 1.5 }}>
@@ -537,7 +542,8 @@ const CheckoutSelection = () => {
                                                         Sucursales cercanas:
                                                     </p>
 
-                                                    {sucursales.map((suc, index) => {
+                                                    {/* MAPA DE SUCURSALES COMENTADO */}
+                                                    {false && sucursales.map((suc, index) => {
     const estaSeleccionada = sucursalSeleccionada?.id_unico === suc.id_unico;
 
     // Helpers para limpiar textos nulos
@@ -644,10 +650,6 @@ const CheckoutSelection = () => {
                                                             Buscá en el localizador oficial de Correo Argentino
                                                         </a>
                                                     </p>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
                                 </div>
                             )}
 
