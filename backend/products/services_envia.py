@@ -82,12 +82,33 @@ def calcular_costo_envio(codigo_postal_destino):
     if not geo_data:
         return {"error": True, "mensaje": f"No se pudieron obtener datos geográficos para el CP {codigo_postal_destino}."}
 
-    dest_city = geo_data.get("city")
-    dest_state = geo_data.get("state")
+    # 🔥 EXTRACCIÓN INTELIGENTE DE CIUDAD Y PROVINCIA 🔥
+    dest_state = "CB" 
+    dest_city = "Cordoba"
 
+    if geo_data:
+        dest_city = geo_data.get("city")
+        state_data = geo_data.get("state")
+        
+        if isinstance(state_data, dict):
+            # Envia puede devolver "código" con o sin tilde
+            codigos = state_data.get("código", {}) or state_data.get("codigo", {})
+            dest_state = codigos.get("2digit", "CB") 
+            
+            if not dest_city:
+                dest_city = state_data.get("nombre", "Cordoba")
+                
+        elif isinstance(state_data, str):
+            dest_state = state_data
 
     # 👀 ESPÍA DE DOMICILIO 👀
     print(f"📦 [DOMICILIO] Buscando CP: {codigo_postal_destino} | Ciudad: '{dest_city}' | Prov: '{dest_state}'")
+
+    # 🔥 VALORES DE CONFIGURACIÓN SEGUROS 🔥
+    peso_seguro = float(config.peso_estandar) if config.peso_estandar else 1.0
+    largo_seguro = config.largo_estandar if config.largo_estandar else 10
+    ancho_seguro = config.ancho_estandar if config.ancho_estandar else 10
+    alto_seguro = config.alto_estandar if config.alto_estandar else 10
 
     payload = {
         "origin": {
@@ -98,19 +119,19 @@ def calcular_costo_envio(codigo_postal_destino):
         },
         "destination": {
             "name": "Cliente Web", "company": "", "email": "nachozubri15@gmail.com",
-            "phone": "3510000000", "street": "Calle Falsa", "number": "123",
+            "phone": "3510000000", "street": "Centro", "number": "1", # <- Evitamos "Calle Falsa"
             "district": "", "city": dest_city, "state": dest_state, "country": "AR",
             "postalCode": str(codigo_postal_destino), "reference": ""
         },
         "packages": [{
             "content": "Telas y Textiles", "amount": 1, "type": "box",
-            "weight": float(config.peso_estandar), "insurance": 0, "declaredValue": 0,
+            "weight": peso_seguro, "insurance": 0, "declaredValue": 0,
             "weightUnit": "KG", "lengthUnit": "CM",
             "dimensions": {
-                "length": config.largo_estandar, "width": config.ancho_estandar, "height": config.alto_estandar
+                "length": largo_seguro, "width": ancho_seguro, "height": alto_seguro
             }
         }],
-        "shipment": {"carrier": "correoargentino", "type": 1}
+        "shipment": {"carrier": "correoArgentino", "type": 1} # <- carrier con mayúscula
     }
 
     try:
@@ -128,7 +149,7 @@ def calcular_costo_envio(codigo_postal_destino):
                     "servicio": op.get('serviceDescription', 'Estándar'),
                     "costo": float(op.get('totalPrice', 0)),
                     "tiempo_entrega": op.get('deliveryEstimate', 'Desconocido'),
-                    "carrier_code": op.get('carrier', 'correoargentino').lower(),
+                    "carrier_code": op.get('carrier', 'correoArgentino').lower(),
                     "service_code": op.get('service', 'estandar').lower()
                 })
             return {"error": False, "tipo": "Larga Distancia", "opciones": lista_opciones}
@@ -145,12 +166,9 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     if not config or not config.api_key_envia:
         return {"error": True, "mensaje": "Token no definido."}
 
-    # ¡Importante! Asegúrate de que esta URL sea la correcta para el entorno.
-    # Para pruebas, debería ser: https://api-test.envia.com
     base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/rate"
     
-    # 1. Agregado el header 'accept' según la documentación
     headers = {
         "Authorization": f"Bearer {config.api_key_envia}", 
         "Content-Type": "application/json",
@@ -161,12 +179,32 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     if not geo_data:
         return {"error": True, "mensaje": f"No se pudieron obtener datos geográficos para el CP {codigo_postal_destino}."}
 
-    # 2. Las variables dest_city y dest_state se extraen DESPUÉS de validar geo_data
-    dest_city = geo_data.get("city")
-    dest_state = geo_data.get("state")
+    # 🔥 EXTRACCIÓN INTELIGENTE DE CIUDAD Y PROVINCIA 🔥
+    dest_state = "CB" 
+    dest_city = "Cordoba"
+
+    if geo_data:
+        dest_city = geo_data.get("city")
+        state_data = geo_data.get("state")
+        
+        if isinstance(state_data, dict):
+            codigos = state_data.get("código", {}) or state_data.get("codigo", {})
+            dest_state = codigos.get("2digit", "CB") 
+            
+            if not dest_city:
+                dest_city = state_data.get("nombre", "Cordoba")
+                
+        elif isinstance(state_data, str):
+            dest_state = state_data
 
     # 👀 ESPÍA DE SUCURSAL 👀
     print(f"🏪 [SUCURSAL] Buscando CP: {codigo_postal_destino} | Ciudad: '{dest_city}' | Prov: '{dest_state}'")
+
+    # 🔥 VALORES DE CONFIGURACIÓN SEGUROS 🔥
+    peso_seguro = float(config.peso_estandar) if config.peso_estandar else 1.0
+    largo_seguro = config.largo_estandar if config.largo_estandar else 10
+    ancho_seguro = config.ancho_estandar if config.ancho_estandar else 10
+    alto_seguro = config.alto_estandar if config.alto_estandar else 10
 
     payload = {
         "origin": {
@@ -178,8 +216,8 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
         "destination": {
             "name": "Cliente Web", "company": "", "email": "nachozubri15@gmail.com",
             "phone": "3510000000", 
-            "street": "Centro",     # 🔥 TRUCO APLICADO PARA CIUDADES GRANDES
-            "number": "1",          # 🔥 TRUCO APLICADO PARA CIUDADES GRANDES
+            "street": "Centro",     
+            "number": "1",          
             "district": "", 
             "city": dest_city, 
             "state": dest_state, 
@@ -189,13 +227,12 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
         },
         "packages": [{
             "content": "Telas y Textiles", "amount": 1, "type": "box",
-            "weight": float(config.peso_estandar), "insurance": 0, "declaredValue": 0,
+            "weight": peso_seguro, "insurance": 0, "declaredValue": 0,
             "weightUnit": "KG", "lengthUnit": "CM",
             "dimensions": {
-                "length": config.largo_estandar, "width": config.ancho_estandar, "height": config.alto_estandar
+                "length": largo_seguro, "width": ancho_seguro, "height": alto_seguro
             }
         }],
-        # 3. y 4. Cambiado 'correoargentino' por 'correoArgentino' y 'type' 2 por 1
         "shipment": {"carrier": "correoArgentino", "type": 1}
     }
 
@@ -230,6 +267,7 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     except Exception as e:
         print(f"❌ [EXCEPCIÓN SUCURSALES] {str(e)}")
         return {"error": True, "mensaje": f"Error del servidor: {str(e)}"}
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  3. RASTREAR ENVÍOS
 # ─────────────────────────────────────────────────────────────────────────────
