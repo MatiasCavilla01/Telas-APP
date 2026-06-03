@@ -79,6 +79,8 @@ def calcular_costo_envio(codigo_postal_destino):
     headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
 
     geo_data = obtener_datos_geograficos(codigo_postal_destino)
+
+    print(f"🚨 DEBUG GEO_DATA CRUDO para {codigo_postal_destino}: {geo_data}")
     if not geo_data:
         return {"error": True, "mensaje": f"No se pudieron obtener datos geográficos para el CP {codigo_postal_destino}."}
 
