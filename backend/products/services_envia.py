@@ -69,8 +69,12 @@ def calcular_costo_envio(codigo_postal_destino):
     headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
 
     geo_data = obtener_datos_geograficos(codigo_postal_destino)
-    dest_city = geo_data.get("city", "Cordoba") if geo_data else "Cordoba"
-    dest_state = geo_data.get("state", "CB") if geo_data else "CB"
+    if not geo_data:
+        return {"error": True, "mensaje": f"No se pudieron obtener datos geográficos para el CP {codigo_postal_destino}."}
+
+    dest_city = geo_data.get("city")
+    dest_state = geo_data.get("state")
+
 
     # 👀 ESPÍA DE DOMICILIO 👀
     print(f"📦 [DOMICILIO] Buscando CP: {codigo_postal_destino} | Ciudad: '{dest_city}' | Prov: '{dest_state}'")
@@ -131,13 +135,25 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     if not config or not config.api_key_envia:
         return {"error": True, "mensaje": "Token no definido."}
 
+    # ¡Importante! Asegúrate de que esta URL sea la correcta para el entorno.
+    # Para pruebas, debería ser: https://api-test.envia.com
     base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
     endpoint = f"{base_url}/ship/rate"
-    headers = {"Authorization": f"Bearer {config.api_key_envia}", "Content-Type": "application/json"}
+    
+    # 1. Agregado el header 'accept' según la documentación
+    headers = {
+        "Authorization": f"Bearer {config.api_key_envia}", 
+        "Content-Type": "application/json",
+        "accept": "application/json"
+    }
 
     geo_data = obtener_datos_geograficos(codigo_postal_destino)
-    dest_city = geo_data.get("city", "Cordoba") if geo_data else "Cordoba"
-    dest_state = geo_data.get("state", "CB") if geo_data else "CB"
+    if not geo_data:
+        return {"error": True, "mensaje": f"No se pudieron obtener datos geográficos para el CP {codigo_postal_destino}."}
+
+    # 2. Las variables dest_city y dest_state se extraen DESPUÉS de validar geo_data
+    dest_city = geo_data.get("city")
+    dest_state = geo_data.get("state")
 
     # 👀 ESPÍA DE SUCURSAL 👀
     print(f"🏪 [SUCURSAL] Buscando CP: {codigo_postal_destino} | Ciudad: '{dest_city}' | Prov: '{dest_state}'")
@@ -169,7 +185,8 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
                 "length": config.largo_estandar, "width": config.ancho_estandar, "height": config.alto_estandar
             }
         }],
-        "shipment": {"carrier": "correoargentino", "type": 2}
+        # 3. y 4. Cambiado 'correoargentino' por 'correoArgentino' y 'type' 2 por 1
+        "shipment": {"carrier": "correoArgentino", "type": 1}
     }
 
     try:
@@ -194,7 +211,7 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
                     "codigo_postal": _str_field(branch.get('postalCode')),
                     "horario": _str_field(branch.get('schedule')),
                     "proveedor": op.get('carrierDescription', 'Correo Argentino'),
-                    "carrier_code": op.get('carrier', 'correoargentino').lower(),
+                    "carrier_code": op.get('carrier', 'correoArgentino').lower(),
                     "service_code": op.get('service', 'estandar').lower(),
                     "costo": float(op.get('totalPrice', 0)),
                     "tiempo_entrega": op.get('deliveryEstimate', '3-5 días')
@@ -203,7 +220,6 @@ def buscar_sucursales_cercanas(codigo_postal_destino):
     except Exception as e:
         print(f"❌ [EXCEPCIÓN SUCURSALES] {str(e)}")
         return {"error": True, "mensaje": f"Error del servidor: {str(e)}"}
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  3. RASTREAR ENVÍOS
 # ─────────────────────────────────────────────────────────────────────────────
