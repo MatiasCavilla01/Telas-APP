@@ -934,21 +934,20 @@ class TarifaLocalViewSet(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 def obtener_sucursales_api(request):
-       """
-       Recibe el código postal desde React y delega la búsqueda 
-       a la nueva función inteligente con Geocodes.
-       """
-       codigo_postal = request.data.get('codigo_postal')
+    # Si viene como diccionario/objeto: {"codigo_postal": 2345}
+    if isinstance(request.data, dict):
+        codigo_postal = request.data.get('codigo_postal')
+    # Si React mandó el número o texto directo en el body: 2345 o "2345"
+    else:
+        codigo_postal = request.data
 
-       if not codigo_postal:
-           return Response(
-               {"error": True, "mensaje": "Debes enviar un código postal."},
-               status=400
-           )
+    if not codigo_postal:
+        return Response({"error": True, "mensaje": "Debes enviar un código postal."}, status=400)
 
-       resultado = buscar_sucursales_cercanas(codigo_postal)
+    cp_limpio = str(codigo_postal).strip()
+    resultado = buscar_sucursales_cercanas(cp_limpio)
 
-       if resultado.get("error"):
-           return Response(resultado, status=400)
+    if resultado.get("error"):
+        return Response(resultado, status=400)
 
-       return Response(resultado, status=200)
+    return Response(resultado, status=200)

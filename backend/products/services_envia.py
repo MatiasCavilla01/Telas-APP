@@ -33,12 +33,22 @@ def obtener_datos_geograficos(codigo_postal):
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             res_data = response.json()
-            if res_data.get("success") and "data" in res_data:
-                data = res_data["data"]
-                if isinstance(data, list) and len(data) > 0:
-                    return data[0]
-                elif isinstance(data, dict):
-                    return data
+            
+            # CASO A: Si Envia devuelve una lista directa: [{"city": "...", "state": "..."}]
+            if isinstance(res_data, list):
+                if len(res_data) > 0:
+                    return res_data[0]
+                return None
+                
+            # CASO B: Si Envia devuelve un diccionario: {"success": True, "data": [...]}
+            if isinstance(res_data, dict):
+                # Validamos de forma segura sin que explote si no existe la key
+                if res_data.get("success") and "data" in res_data:
+                    data = res_data["data"]
+                    if isinstance(data, list) and len(data) > 0:
+                        return data[0]
+                    elif isinstance(data, dict):
+                        return data
     except Exception as e:
         logger.error(f"Error consultando Geocodes API: {e}")
     return None
