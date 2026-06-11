@@ -1,3 +1,6 @@
+from products.services_tarifas import TARIFARIO, ZONAS_LOGISTICAS
+
+
 from .whatsapp import enviar_notificacion_dueño
 from rest_framework.decorators import api_view, parser_classes, action, api_view, permission_classes    
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -5,6 +8,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 import mercadopago
 import requests
+from rest_framework.permissions import AllowAny
+from .services_correo import buscar_por_cp
 import os
 # revisar luego si todos los import son necesarios o si quedaron algunos de pruebas anteriores
 from .models import Producto, StoreConfiguration, Categoria, ProductoImagen, PagoProcesado, Pedido, PedidoItem, TarifaLocal, Color, UsoTela
@@ -604,139 +609,93 @@ class ProductoAZList(generics.ListAPIView):
     queryset = Producto.objects.all().order_by('nombre')
     serializer_class = ProductoDesplegableSerializer
 
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .services_correo import buscar_por_cp
+from .services_tarifas import determinar_zona, calcular_precio_envio
 
+# ==========================================
+# 1. BÚSQUEDA DE SUCURSALES
+# ==========================================
+@api_view(['POST'])
+def obtener_sucursales_api(request):
+    try:
+        # Ahora request.data funciona perfecto gracias a @api_view
+        cp_cliente = request.data.get('codigo_postal')
+        provincia_destino = request.data.get('provincia', 'Desconocida')
+        
+        # Buscamos en el diccionario
+        sucursales_crudas = buscar_por_cp(cp_cliente)
+        
+        # EL FILTRO: Si el CP no existe en tu archivo, cortamos acá
+        if not sucursales_crudas:
+            return Response({
+                'error': True, 
+                'mensaje': 'Lo sentimos, no realizamos envíos a localidades con ese código postal.'
+            }, status=404)
+
+        # Calculamos la tarifa de la sucursal
+        costo_envio = calcular_precio_envio(provincia_destino, 'sucursal')
+        
+        sucursales_formateadas = []
+        for suc in sucursales_crudas:
+            sucursales_formateadas.append({
+                'id_unico': f"ca_suc_{suc.get('codigo_sucursal', '00')}", 
+                'nombre': suc.get('descripcion', 'Sucursal'), 
+                'proveedor': 'Correo Argentino',
+                'costo': costo_envio,
+                'tiempo_entrega': '3 a 5 días hábiles',
+                'codigo_postal': cp_cliente,
+                'direccion': suc.get('descripcion', ''), 
+                'localidad': suc.get('provincia', ''),
+                'carrier_code': 'correoargentino',
+                'service_code': 'estandar'
+            })
+            
+        return Response({'sucursales': sucursales_formateadas}, status=200)
+        
+    except Exception as e:
+        print(f"Error en sucursales: {e}") # Esto imprimirá el error real en tu consola de VSC si vuelve a fallar
+        return Response({'error': True, 'mensaje': 'Error interno del servidor.'}, status=500)
+
+# ==========================================
+# 2. COTIZACIÓN A DOMICILIO
+# ==========================================
 @api_view(['POST'])
 def cotizar_envio_api(request):
-    """
-    Endpoint consumido por React en el Checkout.
-    Espera un JSON: {"codigo_postal": "2421"}
-    """
     codigo_postal = request.data.get('codigo_postal')
+    provincia_destino = request.data.get('provincia', 'Desconocida')
     
     if not codigo_postal:
         return Response({"error": True, "mensaje": "Debes enviar un código postal."}, status=400)
         
-    # Llamamos a nuestro cerebro logístico
-    resultado = calcular_costo_envio(codigo_postal)
-    
-    if resultado.get("error"):
-        return Response(resultado, status=400)
+    # EL FILTRO: Verificamos si el CP está mapeado, aunque sea para envío a domicilio
+    sucursales_crudas = buscar_por_cp(codigo_postal)
+    if not sucursales_crudas:
+        return Response({
+            "error": True, 
+            "mensaje": "Lo sentimos, no realizamos envíos a localidades con ese código postal."
+        }, status=404)
         
-    return Response(resultado, status=200)
-
-
-@api_view(['POST'])
-#@permission_classes([IsAdminUser])
-def generar_etiqueta_envio_view(request, pedido_id):
-    pedido = get_object_or_404(Pedido, id=pedido_id)
+    # Calculamos la tarifa usando tu motor
+    zona = determinar_zona(provincia_destino)
+    costo_domicilio = calcular_precio_envio(zona, 'domicilio')
     
-    if pedido.estado == 'Enviado':
-        return Response({"error": "Este pedido ya fue enviado o ya tiene una etiqueta generada."}, status=status.HTTP_400_BAD_REQUEST)
-
-    config = StoreConfiguration.objects.filter(is_active=True).first()
-    if not config or not config.api_key_envia:
-        return Response({"error": "Falta el Token de Envia.com en el panel."}, status=status.HTTP_400_BAD_REQUEST)
-
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api.envia.com')
-    endpoint = f"{base_url}/ship/generate"
-    
-    headers = {
-        "Authorization": f"Bearer {config.api_key_envia}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "origin": {
-            "name": config.title,
-            "company": config.title,
-            "email": "nachozubri15@gmail.com",
-            "phone": config.telefono or "3562517046",
-            "street": "Urquiza",       
-            "number": "70",            
-            "district": "",
-            "city": "San Guillermo",   
-            "state": "SF",             
-            "country": "AR",
-            "postalCode": "2347"       
-        },
-        "destination": {
-            # Limitadores de seguridad obligatorios de Envia.com
-            "name": str(pedido.nombre_cliente)[:30], 
-            "company": "",
-            "email": pedido.email_cliente,
-            "phone": pedido.telefono_cliente or "3510000000",
-            
-            "street": str(getattr(pedido, 'calle', '') or pedido.direccion_envio)[:40], 
-            "number": str(getattr(pedido, 'numero', '') or "1")[:10], 
-            "district": "",
-            
-            "city": str(getattr(pedido, 'ciudad', 'Ciudad Desconocida'))[:30], 
-            
-            # ACÁ ESTÁ LA MAGIA DEL DROPDOWN: Ya viene limpio como "CB", "SF", "BA"
-            "state": str(getattr(pedido, 'provincia', 'SF'))[:30], 
-            
-            "country": "AR",
-            "postalCode": str(getattr(pedido, 'codigo_postal', '0000'))[:10] or "0000",
-            
-            # EVITA EL ERROR 400 DE CORREO ARGENTINO
-            "reference": str(pedido.direccion_envio)[:30] 
-        },
-        "packages": [
-            {
-                "content": "Telas y Textiles",
-                "amount": 1,
-                "type": "box",
-                "weight": float(config.peso_estandar),
-                "insurance": 0,
-                "declaredValue": 0,
-                "weightUnit": "KG",
-                "lengthUnit": "CM",
-                "dimensions": {
-                    "length": config.largo_estandar,
-                    "width": config.ancho_estandar,
-                    "height": config.alto_estandar
-                }
-            }
-        ],
-        "shipment": {
-            "carrier": pedido.envia_carrier or "correoargentino", 
-            "service": pedido.envia_service or "estandar", 
-            "type": 1
-        },
-        "settings": {
-            "printFormat": "PDF",
-            "printSize": "STOCK_4X6",
-            "comments": "Telas APP"
+    opciones = [
+        {
+            "proveedor": "Correo Argentino",
+            "servicio": "Envío a Domicilio Clásico",
+            "costo": costo_domicilio,
+            "tiempo_entrega": "3 a 6 días hábiles",
+            "carrier_code": "correoargentino",
+            "service_code": "estandar"
         }
-    }
+    ]
 
-    try:
-        response = requests.post(endpoint, json=payload, headers=headers)
-        res_data = response.json()
-
-        if response.status_code == 200 and 'data' in res_data:
-            info_envio = res_data['data'][0]
-            
-            pedido.estado = 'Enviado'
-            pedido.tracking_number = info_envio.get('trackingNumber')
-            pedido.url_etiqueta = info_envio.get('label')
-            pedido.save()
-
-            return Response({
-                "success": True,
-                "mensaje": "Etiqueta generada con éxito.",
-                "tracking_number": info_envio.get('trackingNumber'),
-                "label_url": info_envio.get('label')
-            }, status=status.HTTP_200_OK)
-        else:
-            print(f"🚨 ERROR ENVIA: {res_data}")
-            return Response({
-                "error": "Envia.com rechazó la generación.", 
-                "detalle": res_data 
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-    except Exception as e:
-        return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"opciones": opciones}, status=200)
 
 def api_estadisticas(request):
     total_pedidos = Pedido.objects.count()
@@ -932,22 +891,102 @@ class TarifaLocalViewSet(viewsets.ModelViewSet):
     serializer_class = TarifaLocalSerializer
 
 
-@api_view(['POST'])
-def obtener_sucursales_api(request):
-    # Si viene como diccionario/objeto: {"codigo_postal": 2345}
-    if isinstance(request.data, dict):
-        codigo_postal = request.data.get('codigo_postal')
-    # Si React mandó el número o texto directo en el body: 2345 o "2345"
+
+def calcular_envio(request):
+    cp_cliente = "5800" # Esto vendría del request de tu frontend
+    
+    sucursales_disponibles = buscar_por_cp(cp_cliente)
+    
+    if not sucursales_disponibles:
+        return print("No hay sucursales para este Código Postal.")
+        
+    for sucursal in sucursales_disponibles:
+        print(f"Encontrada: {sucursal['descripcion']} en {sucursal['provincia']}")
+        
+    # Aquí continuás con tu lógica para asignar el precio según la zona...
+
+
+
+
+# services_tarifas.py
+def determinar_zona(codigo_provincia):
+    """
+    Recibe el código de la provincia (ej: 'SF', 'BA') y devuelve la Zona Logística.
+    """
+    prov_limpia = str(codigo_provincia).upper().strip()
+    
+    if prov_limpia in ZONAS_LOGISTICAS['LOCAL']:
+        return 'LOCAL'
+    elif prov_limpia in ZONAS_LOGISTICAS['REGIONAL']:
+        return 'REGIONAL'
+    elif prov_limpia in ZONAS_LOGISTICAS['NACIONAL_2']:
+        return 'NACIONAL_2'
     else:
-        codigo_postal = request.data
+        # Todo lo que no sea local, limítrofe o sur profundo, es Nacional 1 (Mendoza, Salta, etc.)
+        return 'NACIONAL_1'
 
-    if not codigo_postal:
-        return Response({"error": True, "mensaje": "Debes enviar un código postal."}, status=400)
+def calcular_precio_envio(codigo_provincia, tipo_entrega):
+    """
+    Busca en la matriz el precio exacto. 
+    tipo_entrega debe ser 'sucursal' o 'domicilio'.
+    """
+    # 1. Averiguamos la zona
+    zona = determinar_zona(codigo_provincia)
+    
+    # 2. Buscamos los precios de esa zona (Si falla, cobramos la más cara por seguridad)
+    precios_zona = TARIFARIO.get(zona, TARIFARIO['NACIONAL_2'])
+    
+    # 3. Retornamos el costo según sea sucursal o domicilio
+    return precios_zona.get(tipo_entrega, precios_zona['domicilio'])
 
-    cp_limpio = str(codigo_postal).strip()
-    resultado = buscar_sucursales_cercanas(cp_limpio)
 
-    if resultado.get("error"):
-        return Response(resultado, status=400)
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Dejamos que MP entre sin pedirle token previo
+def mercadopago_callback(request):
+    # 1. Atrapamos el código y el ID de la tienda (que mandaremos desde React)
+    codigo_autorizacion = request.GET.get('code')
+    tienda_id = request.GET.get('state') 
 
-    return Response(resultado, status=200)
+    # URL final a donde mandamos al cliente cuando termina todo el proceso
+    URL_FRONTEND = 'https://www.modaytelas.com.ar/dashboard/inicio'
+
+    if not codigo_autorizacion:
+        return redirect(f"{URL_FRONTEND}?error=auth_failed")
+
+    # 2. Le pedimos el Token definitivo a Mercado Pago
+    url_token = "https://api.mercadopago.com/oauth/token"
+    
+    data = {
+        "client_secret": settings.MP_CLIENT_SECRET,
+        "client_id": settings.MP_APP_ID,
+        "grant_type": "authorization_code",
+        "code": codigo_autorizacion,
+        # ESTA URL TIENE QUE SER EXACTAMENTE LA MISMA QUE PUSIMOS EN MP
+        "redirect_uri": "https://ignaciozurbriggen.pythonanywhere.com/api/mercadopago/callback/"
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+    }
+
+    response = requests.post(url_token, data=data, headers=headers)
+    mp_data = response.json()
+
+    # 3. Si todo salió bien, guardamos en la base de datos
+    if response.status_code == 200:
+        try:
+            tienda = StoreConfiguration.objects.get(id=tienda_id)
+            tienda.mp_access_token = mp_data.get('access_token')
+            tienda.mp_refresh_token = mp_data.get('refresh_token')
+            tienda.mp_user_id = mp_data.get('user_id')
+            tienda.save()
+            
+            # ¡Éxito! Redirigimos al cliente a su panel
+            return redirect(f"{URL_FRONTEND}?success=mp_vinculado")
+        except StoreConfiguration.DoesNotExist:
+            return redirect(f"{URL_FRONTEND}?error=tienda_no_encontrada")
+    else:
+        # Si MP rechaza el código, lo mandamos de vuelta con error
+        print("Error de Mercado Pago:", mp_data) # Ideal para mirar en la terminal si algo falla
+        return redirect(f"{URL_FRONTEND}?error=token_failed")

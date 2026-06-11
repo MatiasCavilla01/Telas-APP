@@ -23,7 +23,7 @@ const Dashboard = () => {
           // Filtramos transferencias pendientes de validación
           const transferencias = data.filter(p => p.estado === 'Esperando_Transferencia').length;
           
-          // Filtramos pedidos que ya entraron y hay que armar (Ajustá estos estados según tu backend)
+          // Filtramos pedidos que ya entraron y hay que armar
           const pedidosNuevos = data.filter(p => p.estado === 'Pagado' || p.estado === 'Pendiente').length;
 
           setTransferenciasCount(transferencias);
@@ -101,7 +101,6 @@ const Dashboard = () => {
             style={{ background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
             <Icon d={icons.menu} size={24} color="white" strokeWidth="2" />
-            {/* Opcional: un mini puntito rojo en la hamburguesa si hay notificaciones sin leer */}
             {(transferenciasCount > 0 || pedidosNuevosCount > 0) && (
               <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', position: 'absolute', top: 8, left: 24 }} />
             )}
@@ -147,7 +146,6 @@ const Dashboard = () => {
           </button>
           
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', margin: '24px 0 8px 16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Gestión</div>
-          {/* 👇 NUEVO BOTÓN: VENTAS EN LOCAL 👇 */}
           <button style={getLinkStyle('/dashboard/ventas-local')} onClick={() => navigate('/dashboard/venta-local')}>
             <Icon d={icons.orders} size={18} color={isActive('/dashboard/venta-local') ? '#6366f1' : '#94a3b8'} /> Ventas en Local
           </button>
@@ -164,7 +162,6 @@ const Dashboard = () => {
             <Icon d={icons.design} size={18} color={isActive('/dashboard/diseno') ? '#6366f1' : '#94a3b8'} /> Diseño & Colores
           </button>
           
-          {/* 👇 ACÁ ESTÁN LAS BURBUJAS DE NOTIFICACIÓN APLICADAS 👇 */}
           <button style={getLinkStyle('/dashboard/pedidos')} onClick={() => navigate('/dashboard/pedidos')}>
             <Icon d={icons.orders} size={18} color={isActive('/dashboard/pedidos') ? '#6366f1' : '#94a3b8'} /> Ventas & Pedidos
             <Badge count={pedidosNuevosCount} />
@@ -173,7 +170,6 @@ const Dashboard = () => {
             <Icon d={icons.orders} size={18} color={isActive('/dashboard/transferencias') ? '#6366f1' : '#94a3b8'} /> Transferencias
             <Badge count={transferenciasCount} />
           </button>
-          {/* -------------------------------------------------------- */}
 
           <button style={getLinkStyle('/dashboard/puntos-entrega')} onClick={() => navigate('/dashboard/puntos-entrega')}>
             <Icon d={icons.package} size={18} color={isActive('/dashboard/puntos-entrega') ? '#6366f1' : '#94a3b8'} /> Puntos de Entrega

@@ -30,9 +30,10 @@ urlpatterns = [
     
 
     # 👇 NUEVA RUTA PARA GENERAR LA ETIQUETA DE UN PEDIDO ESPECÍFICO 👇
-    path('api/pedidos/<int:pedido_id>/generar-etiqueta/', views.generar_etiqueta_envio_view, name='generar_etiqueta'),
-
+   
     path('api/cotizar-envio/', views.cotizar_envio_api, name='cotizar_envio'),
+
+    path('mercadopago/callback/', views.mercadopago_callback, name='mp_callback'),
 
     
 
