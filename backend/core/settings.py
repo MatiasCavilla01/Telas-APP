@@ -150,7 +150,7 @@ AUTH_PASSWORD_VALIDATORS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Le damos permiso a tu frontend de Vite
     "https://modaytelas.com.ar",
-    "http://localhost:5173",
+    "https://www.modaytelas.com.ar",
 ]
 
 # Internationalization
