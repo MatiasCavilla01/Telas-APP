@@ -82,6 +82,10 @@ class StoreConfiguration(models.Model):
     instagram = models.CharField(max_length=100, blank=True, null=True, verbose_name="Usuario de Instagram")
     telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono del Cliente")
 
+    mp_access_token = models.CharField(max_length=255, blank=True, null=True)
+    mp_refresh_token = models.CharField(max_length=255, blank=True, null=True)
+    mp_user_id = models.CharField(max_length=100, blank=True, null=True)
+
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
