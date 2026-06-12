@@ -33,7 +33,7 @@ urlpatterns = [
    
     path('api/cotizar-envio/', views.cotizar_envio_api, name='cotizar_envio'),
 
-    path('mercadopago/callback/', views.mercadopago_callback, name='mp_callback'),
+    path('api/mercadopago/callback/', views.mercadopago_callback, name='mp_callback'),
 
     
 
