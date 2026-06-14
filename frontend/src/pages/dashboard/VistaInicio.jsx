@@ -163,4 +163,4 @@ const VistaInicio = () => {
   );
 };
 
-export default VistaInicio;
+export default VistaInicio; 

@@ -2,7 +2,8 @@ from products.services_tarifas import TARIFARIO, ZONAS_LOGISTICAS
 from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Count, Sum
-
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import DateRange, Metric, RunReportRequest
 from .whatsapp import enviar_notificacion_dueño
 from rest_framework.decorators import api_view, parser_classes, action, api_view, permission_classes    
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -699,6 +700,7 @@ def cotizar_envio_api(request):
 
     return Response({"opciones": opciones}, status=200)
 
+
 def api_estadisticas(request):
     total_pedidos = Pedido.objects.count()
 
@@ -708,35 +710,58 @@ def api_estadisticas(request):
     qs_pendientes = Pedido.objects.filter(estado__in=['Pendiente', 'Esperando_Transferencia', 'PENDIENTE']).order_by('-id')
     qs_cancelados = Pedido.objects.filter(estado__in=['Cancelado', 'CANCELADO']).order_by('-id')
 
-    # Función rápida para convertir los pedidos en una lista que React entienda
-    # OJO: Si tu modelo no tiene el campo 'total' o 'id', cambialo por el nombre real acá
-    # Función mejorada para extraer toda la info del pedido
     def armar_lista(queryset):
         lista = []
         for p in queryset:
-            # 1. Fecha (Tu modelo usa fecha_creacion)
             fecha_str = p.fecha_creacion.strftime("%d/%m/%Y") if p.fecha_creacion else ""
-
-            # 2. Detalle de Telas (Usamos related_name='items', nombre_producto y cantidad_metros)
             telas_detalle = "Sin detalles"
             if p.items.exists():
-                # Formatea por ejemplo: "Gamuza Roja: 2.00m • Seda Blanca: 1.50m"
-                telas_detalle = " • ".join(
-                    [f"{item.nombre_producto}: {float(item.cantidad_metros):g}m" for item in p.items.all()]
-                )
+                telas_detalle = " • ".join([f"{item.nombre_producto}: {float(item.cantidad_metros):g}m" for item in p.items.all()])
 
-            # 3. Empaquetamos todo exactamente como React lo espera
             lista.append({
                 "id": p.id,
                 "fecha": fecha_str,
                 "estado": p.estado,
                 "total": float(p.total) if p.total else 0.0,
-                "email": p.email_cliente,          # <-- Actualizado a tu modelo
-                "telefono": p.telefono_cliente or '-', # <-- Actualizado a tu modelo
+                "email": p.email_cliente,
+                "telefono": p.telefono_cliente or '-',
                 "metodo_pago": p.metodo_pago,
                 "detalle_telas": telas_detalle
             })
         return lista
+
+    # --- NUEVA FUNCIÓN PARA TRAER DATOS DE GA4 ---
+    # --- NUEVA FUNCIÓN PARA TRAER DATOS DE GA4 ---
+    def obtener_visitas_ga4():
+        try:
+            # 🔒 Extraemos el ID desde las variables de entorno (.env) de forma segura
+            PROPERTY_ID = os.environ.get("GA4_PROPERTY_ID")
+            
+            # Verificamos que existan tanto el ID como el archivo de credenciales
+            if not PROPERTY_ID or "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+                print("Faltan credenciales de GA4 o el Property ID en el entorno.")
+                return 0, 0
+
+            client = BetaAnalyticsDataClient()
+            request = RunReportRequest(
+                property=f"properties/{PROPERTY_ID}",
+                dimensions=[],
+                metrics=[Metric(name="activeUsers"), Metric(name="screenPageViews")],
+                date_ranges=[DateRange(start_date="30daysAgo", end_date="today")],
+            )
+            response = client.run_report(request)
+            
+            if response.rows:
+                usuarios = response.rows[0].metric_values[0].value
+                vistas = response.rows[0].metric_values[1].value
+                return int(usuarios), int(vistas)
+            
+            return 0, 0
+        except Exception as e:
+            print(f"Error consultando GA4: {e}")
+            return 0, 0
+
+    usuarios_activos, vistas_totales = obtener_visitas_ga4()
 
     data = {
         "ingresos": float(ingresos_totales),
@@ -746,15 +771,19 @@ def api_estadisticas(request):
             "pendientes": qs_pendientes.count(),
             "cancelados": qs_cancelados.count()
         },
-        # 👇 NUEVO BLOQUE: Mandamos las listas de datos 👇
+        "analytics": {
+            "usuarios_30_dias": usuarios_activos,
+            "vistas_30_dias": vistas_totales
+        },
         "detalles": {
-            "ingresos": armar_lista(pedidos_exitosos), # Ingresos y Ventas cerradas muestran lo mismo
+            "ingresos": armar_lista(pedidos_exitosos),
             "exitosos": armar_lista(pedidos_exitosos),
             "pendientes": armar_lista(qs_pendientes),
             "cancelados": armar_lista(qs_cancelados)
         }
     }
     return JsonResponse(data)
+
 
 @csrf_exempt  # Para evitar problemas de bloqueo de seguridad desde React
 def eliminar_pedido_api(request, pedido_id):
