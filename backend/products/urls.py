@@ -35,6 +35,8 @@ urlpatterns = [
 
     path('api/mercadopago/callback/', views.mercadopago_callback, name='mp_callback'),
 
+    path('api/dashboard/inicio/', views.api_dashboard_inicio, name='dashboard_inicio'),
+
     
 
     # El router siempre debe ir al final

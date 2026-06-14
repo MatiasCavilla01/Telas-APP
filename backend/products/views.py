@@ -1,5 +1,7 @@
 from products.services_tarifas import TARIFARIO, ZONAS_LOGISTICAS
-
+from datetime import timedelta
+from django.utils import timezone
+from django.db.models import Count, Sum
 
 from .whatsapp import enviar_notificacion_dueño
 from rest_framework.decorators import api_view, parser_classes, action, api_view, permission_classes    
@@ -948,7 +950,7 @@ def mercadopago_callback(request):
     tienda_id = request.GET.get('state') 
 
     # URL final a donde mandamos al cliente cuando termina todo el proceso
-    URL_FRONTEND = 'https://www.modaytelas.com.ar/dashboard/inicio'
+    URL_FRONTEND = 'https://www.modaytelas.com.ar/dashboard/inicio' 
 
     if not codigo_autorizacion:
         return redirect(f"{URL_FRONTEND}?error=auth_failed")
@@ -990,3 +992,69 @@ def mercadopago_callback(request):
         # Si MP rechaza el código, lo mandamos de vuelta con error
         print("Error de Mercado Pago:", mp_data) # Ideal para mirar en la terminal si algo falla
         return redirect(f"{URL_FRONTEND}?error=token_failed")
+    
+
+@api_view(['GET'])
+def api_dashboard_inicio(request):
+    hoy = timezone.now().date()
+    
+    # 1. ESTADÍSTICAS SUPERIORES
+    total_productos = Producto.objects.count()
+    pedidos_pendientes_count = Pedido.objects.filter(
+        estado__in=['Pendiente', 'PENDIENTE', 'Esperando_Transferencia']
+    ).count()
+    
+    pedidos_exitosos = Pedido.objects.filter(
+        estado__in=['Aprobado', 'APROBADO', 'Despachado', 'Enviado', 'ENVIADO']
+    )
+    
+    # Ventas totales del mes
+    pedidos_este_mes = pedidos_exitosos.filter(fecha_creacion__year=hoy.year, fecha_creacion__month=hoy.month)
+    ventas_totales_mes = pedidos_este_mes.aggregate(Sum('total'))['total__sum'] or 0.00
+
+    # 2. DATOS PARA EL GRÁFICO
+    ventas_por_dia = []
+    for d in range(1, hoy.day + 1):
+        pedidos_del_dia = pedidos_exitosos.filter(
+            fecha_creacion__year=hoy.year,
+            fecha_creacion__month=hoy.month,
+            fecha_creacion__day=d
+        )
+        total_dia = pedidos_del_dia.aggregate(Sum('total'))['total__sum'] or 0.00
+        
+        ventas_por_dia.append({
+            "fecha": f"{d:02d}/{hoy.month:02d}",
+            "total": float(total_dia)
+        })
+
+    # 3. PEDIDOS A DESPACHAR (Solo Aprobados listos para armar)
+    pedidos_a_despachar = Pedido.objects.filter(
+        estado__in=['Aprobado', 'APROBADO']
+    ).order_by('-fecha_creacion')[:5]
+    
+    a_despachar_lista = [{
+        "cliente": p.nombre_cliente,
+        "fecha": p.fecha_creacion.strftime("%d %b"),
+        "envio": p.tipo_envio if p.tipo_envio else "Retiro / Envío", # Para mostrar cómo entregarlo
+        "total": float(p.total)
+    } for p in pedidos_a_despachar]
+
+    # 4. PRODUCTOS CON STOCK BAJO
+    stock_bajo = Producto.objects.filter(stock_metros__lt=10).order_by('stock_metros')[:4]
+    stock_bajo_lista = [{
+        "id": p.id,
+        "nombre": p.nombre,
+        "stock": float(p.stock_metros),
+        "precio": float(p.precio_por_metro) if p.precio_por_metro else 0 
+    } for p in stock_bajo]
+
+    return Response({
+        "stats": {
+            "productos": total_productos,
+            "pedidos_pendientes": pedidos_pendientes_count,
+            "ventas_totales": float(ventas_totales_mes),
+        },
+        "grafico": ventas_por_dia,
+        "a_despachar": a_despachar_lista, # Cambiamos el nombre de la variable
+        "stock_bajo": stock_bajo_lista
+    })

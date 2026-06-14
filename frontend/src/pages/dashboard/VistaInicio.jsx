@@ -1,129 +1,164 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
-
-// Importá tus componentes de UI acá (ajustá la ruta si es necesario)
-import Header from '../../components/Header';
-import Card from '../../components/Card';
-import StatCard from '../../components/StatCard';
-import CheckItem from '../../components/CheckItem';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Package, ShoppingCart, DollarSign, Image as ImageIcon, Store, Truck, CreditCard } from 'lucide-react';
+import './DashboardInicio.css'; 
 
 const API = import.meta.env.VITE_API_URL + '/api';
 
 const VistaInicio = () => {
-  const [stats, setStats] = useState({ productos: 0, pedidos: 0, ventas: 0 });
   const navigate = useNavigate();
   const location = useLocation();
-
-  // --- ESTADO PARA SABER SI MERCADO PAGO YA ESTÁ VINCULADO ---
   const [estaVinculadoMp, setEstaVinculadoMp] = useState(false);
+  
+  const [data, setData] = useState({
+    stats: { productos: 0, pedidos_pendientes: 0, ventas_totales: 0 },
+    grafico: [],
+    a_despachar: [],
+    stock_bajo: []
+  });
 
-  // --- LÓGICA PARA LEER SI VENIMOS DE VINCULAR CON ÉXITO ---
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     if (searchParams.get('success') === 'mp_vinculado') {
       setEstaVinculadoMp(true);
     }
+
+    axios.get(`${API}/dashboard/inicio/`)
+      .then(res => setData(res.data))
+      .catch(err => console.error("Error cargando dashboard:", err));
   }, [location.search]);
 
-  useEffect(() => {
-    axios.get(`${API}/productos/`).then(res => {
-      const productos = Array.isArray(res.data) ? res.data.length : (res.data.count || 0);
-      setStats(prev => ({ ...prev, productos }));
-    }).catch(() => {});
-  }, []);
-
-  // --- FUNCIÓN PARA CONECTAR MERCADO PAGO CON VALIDACIONES ---
-  const handleVincularMP = () => {
-    // 1. Verificamos si ya está vinculado
-    if (estaVinculadoMp) {
-      window.alert("Actualmente ya estás vinculado con Mercado Pago.");
-      return; 
-    }
-
-    // 2. Si no está vinculado, le preguntamos si está seguro
-    const confirmar = window.confirm("¿Seguro que quieres vincular con Mercado Pago?");
-    
-    // 3. Si hace clic en "Aceptar", lo mandamos a MP
-    if (confirmar) {
-      const APP_ID = import.meta.env.VITE_MP_APP_ID; 
-      const REDIRECT_URI = "https://ignaciozurbriggen.pythonanywhere.com/api/mercadopago/callback/";
-      const TIENDA_ID = "1"; 
-
-      const urlMP = `https://auth.mercadopago.com/authorization?client_id=${APP_ID}&response_type=code&platform_id=mp&state=${TIENDA_ID}&redirect_uri=${REDIRECT_URI}`;
-      
-      window.location.href = urlMP; 
-    }
-  };
-
   return (
-    <div>
-      <Header title="Inicio" subtitle="¡Chequeá los pasos para dejar tu tienda a tu manera!" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
-        <StatCard label="Productos cargados" value={stats.productos} color="#6366f1" />
-        <StatCard label="Pedidos del mes"    value={stats.pedidos}   color="#f59e0b" />
-        <StatCard label="Ventas totales"     value={`$${stats.ventas}`} color="#10b981" />
-      </div>
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
-          <span style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>Tareas para empezar</span>
-        </div>
-        
-        <CheckItem 
-            label="Registrar venta en local" 
-            desc="Facturar y descontar stock del mostrador" 
-            icon="home" 
-            onClick={() => navigate('/dashboard/venta-local')} 
-        />
-        
-        <CheckItem label="Agregar productos" desc="Cargá tu catálogo de productos con precio y talle" icon="products" onClick={() => navigate('/dashboard/productos')} />
-        <CheckItem label="Crear categorías" desc="Organizá tus productos por categoría" icon="category" onClick={() => navigate('/dashboard/categorias')} />
-        <CheckItem label="Personalizar diseño" desc="Cambiá el banner principal de tu tienda" icon="design" onClick={() => navigate('/dashboard/diseno')} />
-        <CheckItem label="Gestionar ventas y pedidos" desc="Revisá y administrá tus órdenes" icon="orders" onClick={() => navigate('/dashboard/pedidos')} />
-        
-        {/* 👇 BOTÓN DE MERCADO PAGO EN LA LISTA DE TAREAS 👇 */}
-        <div 
-          onClick={handleVincularMP}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '16px 24px',
-            backgroundColor: estaVinculadoMp ? '#ecfdf5' : '#f0f9ff',
-            borderTop: '1px solid #f1f5f9',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = estaVinculadoMp ? '#d1fae5' : '#e0f2fe';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = estaVinculadoMp ? '#ecfdf5' : '#f0f9ff';
-          }}
-        >
-          <div style={{
-            width: '40px', height: '40px', 
-            backgroundColor: estaVinculadoMp ? '#10b981' : '#009EE3', 
-            borderRadius: '8px', display: 'flex', alignItems: 'center', 
-            justifyContent: 'center', marginRight: '16px', flexShrink: 0
-          }}>
-            <span style={{ fontSize: '20px' }}>{estaVinculadoMp ? '✅' : '🤝'}</span>
+    <div className="dashboard-container">
+      
+      {/* 1. TARJETAS SUPERIORES (Ahora son 3) */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#e0e7ff', color: '#4f46e5' }}>
+            <Package size={24} />
           </div>
-          <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: estaVinculadoMp ? '#065f46' : '#0f172a' }}>
-              {estaVinculadoMp ? 'Mercado Pago Vinculado' : 'Empezá a cobrar con Mercado Pago'}
-            </h4>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: estaVinculadoMp ? '#047857' : '#475569' }}>
-              {estaVinculadoMp 
-                ? 'Tu cuenta ya está conectada para recibir dinero.' 
-                : 'Vinculá tu cuenta oficial para recibir el dinero de tus ventas al instante.'}
-            </p>
-          </div>
-          <div style={{ color: estaVinculadoMp ? '#10b981' : '#009EE3', fontWeight: 'bold', fontSize: '18px' }}>
-            ›
+          <div className="stat-info">
+            <h4>{data.stats.productos}</h4>
+            <p>Productos cargados</p>
           </div>
         </div>
 
-      </Card>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+            <ShoppingCart size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>{data.stats.pedidos_pendientes}</h4>
+            <p>Pagos pendientes</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#d1fae5', color: '#059669' }}>
+            <DollarSign size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>${data.stats.ventas_totales.toLocaleString()}</h4>
+            <p>Ingresos del mes</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. SECCIÓN MEDIA */}
+      <div className="middle-grid">
+        <div className="dashboard-card">
+          <div className="card-header">
+            <h3>Ventas de este mes</h3>
+          </div>
+          <div style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.grafico}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="fecha" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `$${value}`} width={45} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={(value) => [`$${value}`, 'Ventas']} />
+                <Line type="monotone" dataKey="total" stroke="#4f46e5" strokeWidth={3} dot={{r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff'}} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="dashboard-card">
+          <div className="card-header">
+            <h3>A preparar y despachar</h3>
+            <span className="ver-todos" onClick={() => navigate('/dashboard/pedidos')}>Ver órdenes</span>
+          </div>
+          <table className="orders-table">
+            <tbody>
+              {data.a_despachar.length > 0 ? data.a_despachar.map((pedido, index) => (
+                <tr key={index}>
+                  <td>
+                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{pedido.cliente}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{pedido.envio}</div>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 600, color: '#059669' }}>${pedido.total}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{pedido.fecha}</div>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan="2" style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>No hay envíos pendientes</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 3. SECCIÓN INFERIOR */}
+      <div className="bottom-grid">
+        
+        <div className="dashboard-card">
+          <div className="card-header">
+            <h3>Atención de Stock</h3>
+            <span className="ver-todos" onClick={() => navigate('/dashboard/productos')}>Inventario</span>
+          </div>
+          <div className="item-list">
+            {data.stock_bajo.length > 0 ? data.stock_bajo.map((prod) => (
+              <div className="item-row" key={prod.id}>
+                <div className="item-img"><ImageIcon size={20} /></div>
+                <div className="item-details">
+                  <h4>{prod.nombre}</h4>
+                  <p>${prod.precio} x metro</p>
+                </div>
+                <span className="badge-danger">{prod.stock}m</span>
+              </div>
+            )) : (
+              <p style={{ color: '#94a3b8', fontSize: '14px', textAlign: 'center', padding: '20px 0' }}>Excelente, todo el stock está en orden.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Acciones Rápidas rediseñadas */}
+        <div className="dashboard-card">
+          <div className="card-header">
+            <h3>Acciones Rápidas</h3>
+          </div>
+          <div className="actions-grid">
+             <div className="action-box primary" onClick={() => navigate('/dashboard/venta-local')}>
+                <Store size={22} />
+                <span>Registrar Venta Local</span>
+             </div>
+             <div className="action-box secondary" onClick={() => navigate('/dashboard/productos')}>
+                <Package size={22} />
+                <span>Gestionar Catálogo</span>
+             </div>
+             
+             <div className={`action-box ${estaVinculadoMp ? 'success' : 'mp'}`}
+                  onClick={() => { if(!estaVinculadoMp) window.confirm("¿Vincular con Mercado Pago?") && (window.location.href = `https://auth.mercadopago.com/authorization?client_id=${import.meta.env.VITE_MP_APP_ID}&response_type=code&platform_id=mp&state=1&redirect_uri=https://ignaciozurbriggen.pythonanywhere.com/api/mercadopago/callback/`); }}>
+                <CreditCard size={22} />
+                <span>{estaVinculadoMp ? 'MP Vinculado' : 'Cobrar con MP'}</span>
+             </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };
