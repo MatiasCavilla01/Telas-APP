@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, ShoppingBag, Clock, XCircle, TrendingUp, Users } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import './Estadisticas.css'; // 👈 Importamos los nuevos estilos
+import { DollarSign, ShoppingBag, Users, Calendar, Store, Globe } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import './Estadisticas.css';
 
 const EstadisticasDashboard = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
-    const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
+    const [mesConsulta, setMesConsulta] = useState("");
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/estadisticas/`);
-                if (!response.ok) throw new Error('Respuesta de red no OK');
+                if (!response.ok) throw new Error('Error en red');
                 const data = await response.json();
                 setStats(data);
+                // Establecemos el mes actual por defecto en el selector
+                setMesConsulta(data.mes_actual.id_mes);
             } catch (error) {
-                console.error("Error cargando estadísticas", error);
+                console.error("Error:", error);
                 setError(true);
             } finally {
                 setLoading(false);
@@ -26,185 +28,115 @@ const EstadisticasDashboard = () => {
         fetchStats();
     }, []);
 
-    if (loading) return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #4f46e5', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <h3 style={{ color: '#64748b' }}>Analizando métricas...</h3>
-            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-        </div>
-    );
+    if (loading) return <div className="loading-spinner">Cargando métricas...</div>;
+    if (error || !stats) return <div className="error-banner">Error al cargar las estadísticas.</div>;
 
-    if (error || !stats) return (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#ef4444', backgroundColor: '#fee2e2', borderRadius: '12px', margin: '24px' }}>
-            <XCircle size={40} style={{ margin: '0 auto 10px auto' }} />
-            <h2 style={{ margin: 0 }}>Error de conexión</h2>
-            <p>No se pudieron cargar las estadísticas de la tienda.</p>
-        </div>
-    );
-
-    const renderizarDetalle = () => {
-        if (!categoriaSeleccionada || !stats.detalles[categoriaSeleccionada]) return null;
-        const lista = stats.detalles[categoriaSeleccionada];
-        
-        const titulos = {
-            ingresos: "Detalle de Ingresos",
-            exitosos: "Pedidos Exitosos",
-            pendientes: "Pedidos Pendientes",
-            cancelados: "Pedidos Cancelados"
-        };
-
-        return (
-            <div className="content-section">
-                <div className="section-title">
-                    {titulos[categoriaSeleccionada]}
-                    <button className="close-btn" onClick={() => setCategoriaSeleccionada(null)}>Cerrar ✕</button>
-                </div>
-                
-                {lista.length === 0 ? (
-                    <p style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>No hay registros en esta categoría.</p>
-                ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="modern-table">
-                          <thead>
-                              <tr>
-                                  <th>Pedido</th>
-                                  <th>Estado</th>
-                                  <th>Cliente</th>
-                                  <th style={{ minWidth: '200px' }}>Detalle de Telas</th>
-                                  <th>Total</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {lista.map((item, index) => {
-                                  let bgEstado = '#f1f5f9', colorEstado = '#475569';
-                                  let textoEstado = (item.estado || '').toUpperCase();
-                                  
-                                  if (textoEstado.includes('APROBADO') || textoEstado.includes('ENVIADO')) {
-                                      bgEstado = '#d1fae5'; colorEstado = '#059669';
-                                  } else if (textoEstado.includes('PENDIENTE') || textoEstado.includes('ESPERANDO')) {
-                                      bgEstado = '#fef3c7'; colorEstado = '#d97706';
-                                  } else if (textoEstado.includes('CANCELADO')) {
-                                      bgEstado = '#fee2e2'; colorEstado = '#dc2626';
-                                  }
-
-                                  return (
-                                      <tr key={index}>
-                                          <td>
-                                              <div style={{ color: '#0f172a', fontWeight: '700', fontSize: '15px' }}>#{item.id}</div>
-                                              <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>{item.fecha}</div>
-                                          </td>
-                                          <td>
-                                              <span className="status-badge" style={{ backgroundColor: bgEstado, color: colorEstado }}>
-                                                  {textoEstado}
-                                              </span>
-                                          </td>
-                                          <td>
-                                              <div style={{ color: '#334155', fontWeight: '600', fontSize: '14px' }}>{item.email}</div>
-                                              <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>{item.telefono}</div>
-                                          </td>
-                                          <td style={{ color: '#475569', fontSize: '14px', lineHeight: '1.5' }}>
-                                              {item.detalle_telas}
-                                          </td>
-                                          <td>
-                                              <div style={{ color: '#0f172a', fontWeight: '700', fontSize: '16px' }}>
-                                                  ${parseFloat(item.total || 0).toLocaleString('es-AR')}
-                                              </div>
-                                              <div style={{ backgroundColor: '#f1f5f9', color: '#475569', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', display: 'inline-block', marginTop: '6px' }}>
-                                                  {(item.metodo_pago || 'TRANSFERENCIA').toUpperCase()}
-                                              </div>
-                                          </td>
-                                      </tr>
-                                  );
-                              })}
-                          </tbody>
-                      </table>
-                    </div>
-                )}
-            </div>
-        );
-    };
+    // Buscar los datos del mes seleccionado en el dropdown
+    const datosMesSeleccionado = stats.historial_12_meses.find(m => m.id_mes === mesConsulta) || stats.mes_actual;
+    
+    // Colores corporativos para el gráfico de torta
+    const PIE_COLORS = ['#f59e0b', '#4f46e5']; // Naranja (Local) y Azul (Web)
 
     return (
         <div className="stats-page-container">
             <div className="stats-header">
-                <TrendingUp size={28} color="#0f172a" />
                 <h1>Panel de Rendimiento</h1>
             </div>
 
+            {/* Fila 1: Tarjetas Principales */}
             <div className="metrics-grid">
-                {/* 1. Ingresos */}
-                <div className={`metric-card ${categoriaSeleccionada === 'ingresos' ? 'active' : ''}`} onClick={() => setCategoriaSeleccionada('ingresos')}>
+                <div className="metric-card">
                     <div className="metric-header">
-                        <h3>Ingresos Totales</h3>
+                        <h3>Ingresos Totales (Histórico)</h3>
                         <div className="metric-icon" style={{ backgroundColor: '#d1fae5', color: '#059669' }}><DollarSign size={20} /></div>
                     </div>
-                    <h2 className="metric-value">${(stats?.ingresos || 0).toLocaleString('es-AR')}</h2>
+                    <h2 className="metric-value">${(stats.ingresos_totales).toLocaleString('es-AR')}</h2>
                 </div>
 
-                {/* 2. Ventas */}
-                <div className={`metric-card ${categoriaSeleccionada === 'exitosos' ? 'active' : ''}`} onClick={() => setCategoriaSeleccionada('exitosos')}>
+                <div className="metric-card interactive">
                     <div className="metric-header">
-                        <h3>Ventas Cerradas</h3>
-                        <div className="metric-icon" style={{ backgroundColor: '#e0e7ff', color: '#4f46e5' }}><ShoppingBag size={20} /></div>
+                        <h3>Consultar Mes</h3>
+                        <div className="metric-icon" style={{ backgroundColor: '#f3f4f6', color: '#4b5563' }}><Calendar size={20} /></div>
                     </div>
-                    <h2 className="metric-value">{stats?.pedidos?.exitosos || 0}</h2>
+                    <select 
+                        className="month-selector" 
+                        value={mesConsulta} 
+                        onChange={(e) => setMesConsulta(e.target.value)}
+                    >
+                        {stats.historial_12_meses.map((mes) => (
+                            <option key={mes.id_mes} value={mes.id_mes}>{mes.mes_label}</option>
+                        ))}
+                    </select>
                 </div>
 
-                {/* 3. Pendientes */}
-                <div className={`metric-card ${categoriaSeleccionada === 'pendientes' ? 'active' : ''}`} onClick={() => setCategoriaSeleccionada('pendientes')}>
+                <div className="metric-card highlight-card">
                     <div className="metric-header">
-                        <h3>Pendientes</h3>
-                        <div className="metric-icon" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}><Clock size={20} /></div>
+                        <h3>Ventas de {datosMesSeleccionado.mes_label}</h3>
+                        <div className="metric-icon" style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' }}><ShoppingBag size={20} /></div>
                     </div>
-                    <h2 className="metric-value">{stats?.pedidos?.pendientes || 0}</h2>
+                    <h2 className="metric-value text-white">{datosMesSeleccionado.ventas} <span className="sub-value">cerradas</span></h2>
+                    <p className="text-white-muted">Ingresos: ${(datosMesSeleccionado.ingresos).toLocaleString('es-AR')}</p>
                 </div>
 
-                {/* 4. VISITAS GA4 (Nuevo) */}
-                <div className="metric-card" style={{ cursor: 'default' }}>
+                <div className="metric-card">
                     <div className="metric-header">
-                        <h3>Visitantes (30 días)</h3>
+                        <h3>Visitantes Web (Mes)</h3>
                         <div className="metric-icon" style={{ backgroundColor: '#e0f2fe', color: '#0284c7' }}><Users size={20} /></div>
                     </div>
-                    {/* Si no hay credenciales, mostrará 0 temporalmente */}
-                    <h2 className="metric-value">{stats?.analytics?.usuarios_30_dias || 0}</h2>
+                    <h2 className="metric-value">{stats.analytics.visitas_30_dias}</h2>
                 </div>
             </div>
 
-            {/* SECCIÓN DEL GRÁFICO */}
-            {!categoriaSeleccionada && stats && (
+            {/* Fila 2: Gráficos (Barra y Torta) */}
+            <div className="charts-grid">
+                {/* Gráfico de Barras: 12 Meses */}
                 <div className="content-section">
-                    <h2 className="section-title">Distribución de Pedidos</h2>
+                    <h2 className="section-title">Evolución Anual (Ingresos)</h2>
                     <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                data={[
-                                    { name: 'Exitosos', cantidad: stats.pedidos.exitosos, color: '#4f46e5' },
-                                    { name: 'Pendientes', cantidad: stats.pedidos.pendientes, color: '#f59e0b' },
-                                    { name: 'Cancelados', cantidad: stats.pedidos.cancelados, color: '#ef4444' },
-                                ]}
-                                margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                                barSize={60}
-                            >
+                        <ResponsiveContainer>
+                            <BarChart data={stats.historial_12_meses} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 13, fontWeight: 500 }} />
-                                <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 13 }} />
-                                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                                <Bar dataKey="cantidad" radius={[8, 8, 0, 0]}>
-                                    {
-                                        [{ color: '#4f46e5' }, { color: '#f59e0b' }, { color: '#ef4444' }].map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))
-                                    }
-                                </Bar>
+                                <XAxis dataKey="mes_label" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                <YAxis tickFormatter={(val) => `$${val/1000}k`} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                <Tooltip formatter={(value) => [`$${value.toLocaleString('es-AR')}`, 'Ingresos']} cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                <Bar dataKey="ingresos" fill="#4f46e5" radius={[6, 6, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
-            )}
 
-            {/* TABLA DINÁMICA */}
-            {renderizarDetalle()}
-
+                {/* Gráfico de Torta: Local vs Web */}
+                <div className="content-section">
+                    <h2 className="section-title">Origen de Ventas (Histórico)</h2>
+                    <div style={{ width: '100%', height: 260 }}>
+                        <ResponsiveContainer>
+                            <PieChart>
+                                <Pie
+                                    data={stats.origen_ventas}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={70}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {stats.origen_ventas.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => [`${value} Ventas`, 'Cantidad']} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                    
+                    {/* Leyenda extra visual */}
+                    <div className="pie-legend-details">
+                        <div className="legend-item"><Store size={16} color="#f59e0b" /> Local: {stats.origen_ventas[0].value}</div>
+                        <div className="legend-item"><Globe size={16} color="#4f46e5" /> Web: {stats.origen_ventas[1].value}</div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

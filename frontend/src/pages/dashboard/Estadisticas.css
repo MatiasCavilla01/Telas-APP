@@ -1,8 +1,12 @@
+/* ==========================================================================
+   Contenedor Principal y Encabezado
+   ========================================================================== */
 .stats-page-container {
   padding: 24px;
   background-color: #f0f4f8;
   min-height: 100vh;
   font-family: 'Inter', system-ui, sans-serif;
+  box-sizing: border-box;
 }
 
 .stats-header {
@@ -19,7 +23,9 @@
   font-weight: 700;
 }
 
-/* Grilla superior */
+/* ==========================================================================
+   Grilla Superior de Métrica (Tarjetas)
+   ========================================================================== */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -80,13 +86,60 @@
   letter-spacing: -1px;
 }
 
-/* Sección de Gráfico y Tablas */
+/* Tarjeta destacada del mes seleccionado */
+.highlight-card {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  border: none;
+}
+
+.highlight-card .metric-header h3 {
+  color: #e0e7ff;
+}
+
+/* Selector de meses interno en tarjetas */
+.month-selector {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 15px;
+  outline: none;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.month-selector:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* ==========================================================================
+   Grilla y Secciones de Gráficos (Evolución y Torta)
+   ========================================================================== */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* El gráfico de barras ocupa el doble del de torta */
+  gap: 24px;
+  margin-top: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .content-section {
   background: white;
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   animation: fadeUp 0.4s ease-out;
+  
+  /* Protecciones clave anti-desborde para Recharts */
+  min-width: 0; 
+  overflow: hidden; 
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title {
@@ -99,6 +152,28 @@
   align-items: center;
 }
 
+/* Leyendas personalizadas debajo del gráfico de torta */
+.pie-legend-details {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #475569;
+  font-size: 14px;
+}
+
+/* ==========================================================================
+   Tablas y Estados (Retrocompatibilidad / Opcionales)
+   ========================================================================== */
 .close-btn {
   background: #f1f5f9;
   border: none;
@@ -115,7 +190,6 @@
   color: #0f172a;
 }
 
-/* Tabla modernizada */
 .modern-table {
   width: 100%;
   border-collapse: separate;
@@ -151,7 +225,67 @@
   display: inline-block;
 }
 
+/* ==========================================================================
+   Estados de Carga, Errores y Auxiliares de Texto
+   ========================================================================== */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.error-banner {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 20px;
+  text-align: center;
+  border-radius: 8px;
+  margin: 24px;
+  font-weight: bold;
+}
+
+.text-white {
+  color: white !important;
+}
+
+.text-white-muted {
+  color: #a5b4fc;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 8px 0 0 0;
+}
+
+.sub-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #c7d2fe;
+}
+
+/* ==========================================================================
+   Animaciones e Interrupciones de Medios (Responsive Design)
+   ========================================================================== */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tablets e Interfaces Medianas */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr; /* Los bloques de gráficos se apilan uno abajo del otro */
+    gap: 20px;
+  }
+}
+
+/* Teléfonos y Visores Pequeños (Mobile First fix) */
+@media (max-width: 640px) {
+  .stats-page-container {
+    padding: 16px; /* Da más espacio útil en pantallas de teléfonos */
+  }
+  .content-section {
+    padding: 16px; /* Ajusta los contenedores internos para que el gráfico respire */
+  }
 }

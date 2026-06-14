@@ -242,3 +242,100 @@
     gap: 12px;
   }
 }
+
+/* Agrega esto al final de tu Estadisticas.css */
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* El de barras ocupa más espacio que el de torta */
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr; /* En móviles se apilan */
+  }
+}
+
+.month-selector {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 15px;
+  outline: none;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.month-selector:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.highlight-card {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  border: none;
+}
+
+.highlight-card .metric-header h3 {
+  color: #e0e7ff;
+}
+
+.text-white {
+  color: white !important;
+}
+
+.text-white-muted {
+  color: #a5b4fc;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 8px 0 0 0;
+}
+
+.sub-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #c7d2fe;
+}
+
+.pie-legend-details {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #475569;
+  font-size: 14px;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.error-banner {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 20px;
+  text-align: center;
+  border-radius: 8px;
+  margin: 24px;
+  font-weight: bold;
+}

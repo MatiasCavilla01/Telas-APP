@@ -2,6 +2,7 @@ from products.services_tarifas import TARIFARIO, ZONAS_LOGISTICAS
 from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Count, Sum
+from django.utils.timezone import now
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import DateRange, Metric, RunReportRequest
 from .whatsapp import enviar_notificacion_dueño
@@ -699,89 +700,78 @@ def cotizar_envio_api(request):
     ]
 
     return Response({"opciones": opciones}, status=200)
-
-
 def api_estadisticas(request):
-    total_pedidos = Pedido.objects.count()
-
-    pedidos_exitosos = Pedido.objects.filter(estado__in=['Aprobado', 'Despachado', 'APROBADO', 'ENVIADO']).order_by('-id')
+    # 1. Filtramos solo los pedidos consolidados (ventas reales)
+    pedidos_exitosos = Pedido.objects.filter(estado__in=['Aprobado', 'Despachado', 'APROBADO', 'ENVIADO'])
+    
+    # 2. Ingresos Totales Históricos
     ingresos_totales = pedidos_exitosos.aggregate(Sum('total'))['total__sum'] or 0.00
     
-    qs_pendientes = Pedido.objects.filter(estado__in=['Pendiente', 'Esperando_Transferencia', 'PENDIENTE']).order_by('-id')
-    qs_cancelados = Pedido.objects.filter(estado__in=['Cancelado', 'CANCELADO']).order_by('-id')
+    # 3. Separación Local vs Web (usando el email que definiste en tu view)
+    ventas_locales_qs = pedidos_exitosos.filter(email_cliente="local@telasapp.com")
+    ventas_web_qs = pedidos_exitosos.exclude(email_cliente="local@telasapp.com")
+    
+    ventas_locales_count = ventas_locales_qs.count()
+    ventas_web_count = ventas_web_qs.count()
 
-    def armar_lista(queryset):
-        lista = []
-        for p in queryset:
-            fecha_str = p.fecha_creacion.strftime("%d/%m/%Y") if p.fecha_creacion else ""
-            telas_detalle = "Sin detalles"
-            if p.items.exists():
-                telas_detalle = " • ".join([f"{item.nombre_producto}: {float(item.cantidad_metros):g}m" for item in p.items.all()])
+    # 4. Construcción del Historial de los últimos 12 meses
+    fecha_actual = now()
+    meses_historial = []
+    nombres_meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    
+    for i in range(11, -1, -1):
+        m = fecha_actual.month - i
+        y = fecha_actual.year
+        while m <= 0:
+            m += 12
+            y -= 1
+            
+        pedidos_mes = pedidos_exitosos.filter(fecha_creacion__year=y, fecha_creacion__month=m)
+        total_mes = pedidos_mes.aggregate(Sum('total'))['total__sum'] or 0
+        ventas_mes = pedidos_mes.count()
+        
+        meses_historial.append({
+            "id_mes": f"{y}-{m:02d}", # Ej: "2026-06"
+            "mes_label": f"{nombres_meses[m-1]} {y}", # Ej: "Jun 2026"
+            "ingresos": float(total_mes),
+            "ventas": ventas_mes
+        })
 
-            lista.append({
-                "id": p.id,
-                "fecha": fecha_str,
-                "estado": p.estado,
-                "total": float(p.total) if p.total else 0.0,
-                "email": p.email_cliente,
-                "telefono": p.telefono_cliente or '-',
-                "metodo_pago": p.metodo_pago,
-                "detalle_telas": telas_detalle
-            })
-        return lista
-
-    # --- NUEVA FUNCIÓN PARA TRAER DATOS DE GA4 ---
-    # --- NUEVA FUNCIÓN PARA TRAER DATOS DE GA4 ---
+    # 5. Consultar Google Analytics 4
     def obtener_visitas_ga4():
         try:
-            # 🔒 Extraemos el ID desde las variables de entorno (.env) de forma segura
             PROPERTY_ID = os.environ.get("GA4_PROPERTY_ID")
-            
-            # Verificamos que existan tanto el ID como el archivo de credenciales
             if not PROPERTY_ID or "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-                print("Faltan credenciales de GA4 o el Property ID en el entorno.")
-                return 0, 0
-
+                return 0
+            
             client = BetaAnalyticsDataClient()
             request = RunReportRequest(
                 property=f"properties/{PROPERTY_ID}",
                 dimensions=[],
-                metrics=[Metric(name="activeUsers"), Metric(name="screenPageViews")],
+                metrics=[Metric(name="activeUsers")],
                 date_ranges=[DateRange(start_date="30daysAgo", end_date="today")],
             )
             response = client.run_report(request)
-            
             if response.rows:
-                usuarios = response.rows[0].metric_values[0].value
-                vistas = response.rows[0].metric_values[1].value
-                return int(usuarios), int(vistas)
-            
-            return 0, 0
+                return int(response.rows[0].metric_values[0].value)
+            return 0
         except Exception as e:
-            print(f"Error consultando GA4: {e}")
-            return 0, 0
-
-    usuarios_activos, vistas_totales = obtener_visitas_ga4()
+            print(f"Error GA4: {e}")
+            return 0
 
     data = {
-        "ingresos": float(ingresos_totales),
-        "pedidos": {
-            "total": total_pedidos,
-            "exitosos": pedidos_exitosos.count(),
-            "pendientes": qs_pendientes.count(),
-            "cancelados": qs_cancelados.count()
-        },
+        "ingresos_totales": float(ingresos_totales),
+        "historial_12_meses": meses_historial,
+        "mes_actual": meses_historial[-1], # El último de la lista es el mes en curso
+        "origen_ventas": [
+            {"name": "Local", "value": ventas_locales_count},
+            {"name": "Web", "value": ventas_web_count}
+        ],
         "analytics": {
-            "usuarios_30_dias": usuarios_activos,
-            "vistas_30_dias": vistas_totales
-        },
-        "detalles": {
-            "ingresos": armar_lista(pedidos_exitosos),
-            "exitosos": armar_lista(pedidos_exitosos),
-            "pendientes": armar_lista(qs_pendientes),
-            "cancelados": armar_lista(qs_cancelados)
+            "visitas_30_dias": obtener_visitas_ga4()
         }
     }
+    
     return JsonResponse(data)
 
 
