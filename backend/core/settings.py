@@ -98,20 +98,36 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'Telas-App', 
-        'USER': 'postgres',
-        'PASSWORD': 'Nacho2003',
-        'HOST': 'localhost',
-        'PORT': '3000',
-        'OPTIONS': {
-            'client_encoding': 'UTF8',
+
+
+# Si la variable 'PYTHONANYWHERE_DOMAIN' existe, significa que el código está en producción
+if 'PYTHONANYWHERE_DOMAIN' in os.environ:
+    # ☁️ CONFIGURACIÓN DE PYTHONANYWHERE (MySQL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'ignaciozurbrigge$Telas-App',
+            'USER': 'ignaciozurbrigge',
+            'PASSWORD': 'nacho2003',
+            'HOST': 'ignaciozurbriggen.mysql.pythonanywhere-services.com',
+            'PORT': '3306',
         }
     }
-}
- 
+else:
+    # 💻 CONFIGURACIÓN LOCAL (PostgreSQL en tu VS Code)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'Telas-App', 
+            'USER': 'postgres',
+            'PASSWORD': 'Nacho2003',
+            'HOST': 'localhost',
+            'PORT': '3000',
+            'OPTIONS': {
+                'client_encoding': 'UTF8',
+            }
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -133,6 +149,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Le damos permiso a tu frontend de Vite
+    "https://modaytelas.com.ar",
+    "https://www.modaytelas.com.ar",
 ]
 
 # Internationalization
@@ -191,3 +209,8 @@ PILLOW_SETTINGS = {
     'PNG_COMPRESS_LEVEL': 9,
     'WEBP_QUALITY': 85,
 }
+
+
+# CONFIGURACIÓN DE MERCADO PAGO
+MP_APP_ID = os.environ.get('MP_APP_ID')
+MP_CLIENT_SECRET = os.environ.get('MP_CLIENT_SECRET')

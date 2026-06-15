@@ -1,13 +1,23 @@
+from products.services_tarifas import TARIFARIO, ZONAS_LOGISTICAS
+from datetime import timedelta
+from django.utils import timezone
+from django.db.models import Count, Sum
+from django.utils.timezone import now
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import DateRange, Metric, RunReportRequest
+from .whatsapp import enviar_notificacion_dueño
 from rest_framework.decorators import api_view, parser_classes, action, api_view, permission_classes    
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 import mercadopago
 import requests
+from rest_framework.permissions import AllowAny
+from .services_correo import buscar_por_cp
 import os
 # revisar luego si todos los import son necesarios o si quedaron algunos de pruebas anteriores
-from .models import Producto, StoreConfiguration, Categoria, ProductoImagen, PagoProcesado, Pedido, PedidoItem, TarifaLocal, Color
-from .serializers import CategoriaSerializer, ProductoDesplegableSerializer, StoreConfigurationSerializer, Producto
+from .models import Producto, StoreConfiguration, Categoria, ProductoImagen, PagoProcesado, Pedido, PedidoItem, TarifaLocal, Color, UsoTela
+from .serializers import CategoriaSerializer, ProductoDesplegableSerializer, StoreConfigurationSerializer, Producto, UsoTelaSerializer, TarifaLocalSerializer
 from .serializers import ProductoDesplegableSerializer, TarifaLocalSerializer, ColorSerializer, ProductoSerializer, ProductoImagenSerializer, PedidoSerializer
 from decimal import Decimal
 from rest_framework import status, viewsets, generics
@@ -16,12 +26,12 @@ from rest_framework.views import APIView
 from django.db import transaction
 from django.shortcuts import redirect
 from django.core.mail import send_mail
-from .services_envia import calcular_costo_envio
+from .services_envia import buscar_sucursales_cercanas, calcular_costo_envio, rastrear_envios
 from django.shortcuts import redirect, get_object_or_404
 from django.db.models import Sum
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from .services_envia import buscar_sucursales_cercanas, calcular_costo_envio, rastrear_envios
 # ⚠️ IMPORTAMOS EL NUEVO MODELO 'Pedido'
 from .models import Producto, StoreConfiguration, Categoria, ProductoImagen, PagoProcesado, Pedido, PedidoItem
 from .serializers import CategoriaSerializer, ProductoDesplegableSerializer, StoreConfigurationSerializer, ProductoSerializer, ProductoImagenSerializer, PedidoSerializer, ColorSerializer
@@ -49,9 +59,13 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     # ⚠️ Quitamos el select_related('categoria_padre')
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
+    
+class UsoTelaViewSet(viewsets.ModelViewSet):
+    queryset = UsoTela.objects.all().order_by('nombre')
+    serializer_class = UsoTelaSerializer
 
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.prefetch_related('categorias').all()
+    queryset = Producto.objects.prefetch_related('categorias', 'usos').all()
     serializer_class = ProductoSerializer
 
     def create(self, request, *args, **kwargs):
@@ -62,6 +76,10 @@ class ProductoViewSet(viewsets.ModelViewSet):
         categorias_ids = request.data.getlist('categorias')
         if categorias_ids:
             producto.categorias.set(categorias_ids)
+        
+        usos_ids = request.data.getlist('usos')
+        if usos_ids:
+            producto.usos.set(usos_ids)
             
         self._guardar_imagenes_galeria(request, producto)
         return response
@@ -90,6 +108,13 @@ class ProductoViewSet(viewsets.ModelViewSet):
             else:
                 categorias_ids = request.data.get('categorias', [])
             producto.categorias.set(categorias_ids) 
+
+        if 'usos' in request.data:
+            if hasattr(request.data, 'getlist'):
+                usos_ids = request.data.getlist('usos')
+            else:
+                usos_ids = request.data.get('usos', [])
+            producto.usos.set(usos_ids)
             
         self._guardar_imagenes_galeria(request, producto)
         return response
@@ -103,9 +128,15 @@ class ProductoViewSet(viewsets.ModelViewSet):
         
         # Leemos si la URL trae un filtro de color (ej: /api/productos/?color=3)
         color_id = self.request.query_params.get('color', None)
+        uso_id = self.request.query_params.get('uso', None)
         
         if color_id:
             queryset = queryset.filter(color_id=color_id)
+
+        if uso_id:
+            queryset = queryset.filter(usos__id=uso_id)
+
+        
             
         return queryset
     
@@ -276,11 +307,18 @@ class CrearPedidoView(APIView):
                     email_cliente=payer_data.get('email', ''),
                     telefono_cliente=payer_data.get('telefono', ''),
                     direccion_envio=payer_data.get('direccion_envio', 'No especificado'),
-                    total=total,  # ¡Ahora incluye telas + envío!
+                    
+                    # 👇 NUEVOS CAMPOS: Ahora sí guardamos los datos logísticos 👇
+                    ciudad=payer_data.get('ciudad', ''),
+                    provincia=payer_data.get('provincia', ''),
+                    codigo_postal=payer_data.get('codigoPostal', ''), # Ojo: React lo manda como codigoPostal (con P mayúscula)
+                    calle=payer_data.get('calle', ''),
+                    numero=payer_data.get('numero', ''),
+                    # 👆 FIN NUEVOS CAMPOS 👆
+
+                    total=total,
                     metodo_pago=metodo_pago,
                     estado=estado_inicial,
-                    
-                    # Se asigna el costo de envío limpio y se eliminó la línea duplicada
                     costo_envio=costo_envio_calculado,
                     tipo_envio=request.data.get('tipo_envio', 'Retiro en Local'),
                     envia_carrier=request.data.get('envia_carrier'),
@@ -316,16 +354,22 @@ class CrearPedidoView(APIView):
                 pedido.save()
 
             # --- BIFURCACIÓN DE NOTIFICACIONES SEGÚN EL PAGO ---
+
+
+            config = StoreConfiguration.objects.filter(is_active=True).first()
+            correo_dueño = config.correo_contacto if config and config.correo_contacto else 'registrar correo en configuración'
+            alias_banco = config.alias_bancario if config and config.alias_bancario else '--'
+
             if metodo_pago == 'Transferencia':
                 try:
                     # 1. Mail descriptivo al cliente con CBU
-                    asunto_cliente = "Tu pedido está reservado 🧵✨ - Detalles de Transferencia"
+                    asunto_cliente = "Tu pedido está reservado ✨ - Detalles de Transferencia"
                     mensaje_cliente = (
-                        f"¡Hola {pedido.nombre_cliente}!\n\nHemos registrado tu pedido #{pedido.id} correctamente.\n"
-                        f"Hemos reservado tus telas por un plazo de 24 horas. Para completar la compra, realiza la transferencia:\n\n"
+                        f"¡Hola {pedido.nombre_cliente}!\n\nHemos registrado tu pedido correctamente.\n"
+                        f"Hemos reservado tus pedido por un plazo de 24 horas. Para completar la compra, realiza la transferencia y envianos el comprobante para acelerar su despacho...:\n\n"
                         f"💰 Total a transferir: ${pedido.total}\n"
                         f"🏦 CBU: O123456789012345678901\n"
-                        f"📌 Alias: TELAS.APP.CBA\n"
+                        f"📌 Alias: {alias_banco}\n"
                         f"👤 Titular: Ignacio Zurbriggen\n\n"
                         f"📍 Modalidad: {pedido.direccion_envio}\n\n"
                         f"Detalle de tu reserva:\n{pedido.detalle_items}\n"
@@ -335,7 +379,7 @@ class CrearPedidoView(APIView):
                     send_mail(asunto_cliente, mensaje_cliente, settings.DEFAULT_FROM_EMAIL, [pedido.email_cliente], fail_silently=False)
                     
                     # 2. Mail de aviso para ti (el dueño)
-                    asunto_dueno = f"🚨 NUEVO PEDIDO - Transferencia Pendiente (# {pedido.id})"
+                    asunto_dueno = f"TENES UN NUEVO PEDIDO - Transferencia Pendiente (# {pedido.id})"
                     mensaje_dueno = (
                         f"¡Hola! Tienes un nuevo pedido en la web.\n\n"
                         f"👤 Cliente: {pedido.nombre_cliente}\n"
@@ -346,7 +390,7 @@ class CrearPedidoView(APIView):
                         f"📍 Envío/Retiro: {pedido.direccion_envio}\n\n"
                         f"El pedido está a la espera de que el cliente transfiera."
                     )
-                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, ['nachozubri15@gmail.com'], fail_silently=False)
+                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, [correo_dueño], fail_silently=False)
 
                     # 3. Alerta formateada para la plantilla de WhatsApp del dueño
                     datos_plantilla = [
@@ -471,6 +515,9 @@ def webhook_mercadopago(request):
                                 pedido.mp_id = payment_id
                                 pedido.save()
 
+                                config = StoreConfiguration.objects.filter(is_active=True).first()
+                                correo_dueño = config.correo_contacto if config and config.correo_contacto else 'nachozubri15@gmail.com'
+
                                 # Correos informativos automáticos
                                 try:
                                     asunto_cliente = "¡Tu pago fue aprobado! Gracias por elegir Telas APP 🧵✨"
@@ -479,7 +526,7 @@ def webhook_mercadopago(request):
 
                                     asunto_dueno = f"🚀 ¡NUEVA VENTA MP! - ${pedido.total} (Pedido #{pedido.id})"
                                     mensaje_dueno = f"¡Hola! Tienes una nueva venta aprobada vía Mercado Pago.\n\n💰 Monto: ${pedido.total}\n👤 Cliente: {pedido.nombre_cliente}\n📦 Detalle:\n{pedido.detalle_items}"
-                                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, ['nachozubri15@gmail.com'], fail_silently=False)
+                                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, [correo_dueño], fail_silently=False)
                                 except Exception as e_mail:
                                     print(f"⚠️ Error al enviar correos: {e_mail}")
 
@@ -575,200 +622,167 @@ class ProductoAZList(generics.ListAPIView):
     queryset = Producto.objects.all().order_by('nombre')
     serializer_class = ProductoDesplegableSerializer
 
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .services_correo import buscar_por_cp
+from .services_tarifas import determinar_zona, calcular_precio_envio
 
+# ==========================================
+# 1. BÚSQUEDA DE SUCURSALES
+# ==========================================
+@api_view(['POST'])
+def obtener_sucursales_api(request):
+    try:
+        # Ahora request.data funciona perfecto gracias a @api_view
+        cp_cliente = request.data.get('codigo_postal')
+        provincia_destino = request.data.get('provincia', 'Desconocida')
+        
+        # Buscamos en el diccionario
+        sucursales_crudas = buscar_por_cp(cp_cliente)
+        
+        # EL FILTRO: Si el CP no existe en tu archivo, cortamos acá
+        if not sucursales_crudas:
+            return Response({
+                'error': True, 
+                'mensaje': 'Lo sentimos, no realizamos envíos a localidades con ese código postal.'
+            }, status=404)
+
+        # Calculamos la tarifa de la sucursal
+        costo_envio = calcular_precio_envio(provincia_destino, 'sucursal')
+        
+        sucursales_formateadas = []
+        for suc in sucursales_crudas:
+            sucursales_formateadas.append({
+                'id_unico': f"ca_suc_{suc.get('codigo_sucursal', '00')}", 
+                'nombre': suc.get('descripcion', 'Sucursal'), 
+                'proveedor': 'Correo Argentino',
+                'costo': costo_envio,
+                'tiempo_entrega': '3 a 5 días hábiles',
+                'codigo_postal': cp_cliente,
+                'direccion': suc.get('descripcion', ''), 
+                'localidad': suc.get('provincia', ''),
+                'carrier_code': 'correoargentino',
+                'service_code': 'estandar'
+            })
+            
+        return Response({'sucursales': sucursales_formateadas}, status=200)
+        
+    except Exception as e:
+        print(f"Error en sucursales: {e}") # Esto imprimirá el error real en tu consola de VSC si vuelve a fallar
+        return Response({'error': True, 'mensaje': 'Error interno del servidor.'}, status=500)
+
+# ==========================================
+# 2. COTIZACIÓN A DOMICILIO
+# ==========================================
 @api_view(['POST'])
 def cotizar_envio_api(request):
-    """
-    Endpoint consumido por React en el Checkout.
-    Espera un JSON: {"codigo_postal": "2421"}
-    """
     codigo_postal = request.data.get('codigo_postal')
+    provincia_destino = request.data.get('provincia', 'Desconocida')
     
     if not codigo_postal:
         return Response({"error": True, "mensaje": "Debes enviar un código postal."}, status=400)
         
-    # Llamamos a nuestro cerebro logístico
-    resultado = calcular_costo_envio(codigo_postal)
-    
-    if resultado.get("error"):
-        return Response(resultado, status=400)
+    # EL FILTRO: Verificamos si el CP está mapeado, aunque sea para envío a domicilio
+    sucursales_crudas = buscar_por_cp(codigo_postal)
+    if not sucursales_crudas:
+        return Response({
+            "error": True, 
+            "mensaje": "Lo sentimos, no realizamos envíos a localidades con ese código postal."
+        }, status=404)
         
-    return Response(resultado, status=200)
-
-
-@api_view(['POST'])
-#@permission_classes([IsAdminUser]) # 🔒 Seguridad: Solo vos (el admin) podés emitir etiquetas gastando saldo
-def generar_etiqueta_envio_view(request, pedido_id):
-    # 1. Buscamos el pedido en la base de datos
-    pedido = get_object_or_404(Pedido, id=pedido_id)
+    # Calculamos la tarifa usando tu motor
+    zona = determinar_zona(provincia_destino)
+    costo_domicilio = calcular_precio_envio(zona, 'domicilio')
     
-    # Verificamos que no tenga ya una etiqueta creada para no gastar doble saldo
-    if pedido.estado == 'Enviado':
-        return Response({"error": "Este pedido ya fue enviado o ya tiene una etiqueta generada."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # 2. Traemos la configuración para sacar el Token
-    config = StoreConfiguration.objects.filter(is_active=True).first()
-    if not config or not config.api_key_envia:
-        return Response({"error": "Falta el Token de Envia.com en el panel."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # 3. Armamos el Payload AUTOMÁTICO leyendo el pedido
-    base_url = os.environ.get('ENVIA_BASE_URL', 'https://api-test.envia.com')
-    endpoint = f"{base_url}/ship/generate"
-    
-    headers = {
-        "Authorization": f"Bearer {config.api_key_envia}",
-        "Content-Type": "application/json"
-    }
-
-    # Separamos la calle y el número de la dirección que guardamos organizada
-    # (Esto asume que el cliente guardó su calle y número)
-    payload = {
-        "origin": {
-            "name": config.title,
-            "company": config.title,
-            "email": "contacto@telasapp.com",
-            "phone": config.telefono or "3510000000",
-            "street": "San Martín",
-            "number": "123",
-            "district": "Centro",
-            "city": "Córdoba",
-            "state": "CB",
-            "country": "AR",
-            "postalCode": "5000"
-        },
-        "destination": {
-            "name": pedido.nombre_cliente,
-            "company": "",
-            "email": pedido.email_cliente,
-            "phone": pedido.telefono_cliente,
-            "street": pedido.direccion_envio, # Mandamos la dirección completa guardada
-            "number": "s/n",
-            "district": "",
-            "city": "Ciudad", 
-            "state": "CB",
-            "country": "AR",
-            "postalCode": "5000", # Deberías guardar el CP limpio en el modelo si Envia se pone estricto
-            "reference": ""
-        },
-        "packages": [
-            {
-                "content": "Telas y Textiles",
-                "amount": 1,
-                "type": "box",
-                "weight": float(config.peso_estandar),
-                "insurance": 0,
-                "declaredValue": 0,
-                "weightUnit": "KG",
-                "lengthUnit": "CM",
-                "dimensions": {
-                    "length": config.largo_estandar,
-                    "width": config.ancho_estandar,
-                    "height": config.alto_estandar
-                }
-            }
-        ],
-        "shipment": {
-            # 😎 AQUÍ SE USA LA MAGIA AUTOMÁTICA QUE ELIGIÓ EL CLIENTE:
-            "carrier": pedido.envia_carrier,  # Ej: "correoargentino"
-            "service": pedido.envia_service,  # Ej: "estandar"
-            "type": 1
-        },
-        "settings": {
-            "printFormat": "PDF",
-            "printSize": "STOCK_4X6",
-            "comments": "Telas APP"
+    opciones = [
+        {
+            "proveedor": "Correo Argentino",
+            "servicio": "Envío a Domicilio Clásico",
+            "costo": costo_domicilio,
+            "tiempo_entrega": "3 a 6 días hábiles",
+            "carrier_code": "correoargentino",
+            "service_code": "estandar"
         }
+    ]
 
-        
-    }
-
-    try:
-        response = requests.post(endpoint, json=payload, headers=headers)
-        res_data = response.json()
-
-        if response.status_code == 200 and 'data' in res_data:
-            info_envio = res_data['data'][0]
-            
-            # 4. Guardamos los datos devueltos por Envia en nuestro Pedido
-            pedido.estado = 'Enviado'
-            # Si agregaste campos para el tracking o la URL del PDF, los guardás acá:
-            pedido.tracking_number = info_envio.get('trackingNumber')
-            pedido.url_etiqueta = info_envio.get('label')
-            pedido.save()
-
-            return Response({
-                "success": True,
-                "mensaje": "Etiqueta generada con éxito.",
-                "tracking_number": info_envio.get('trackingNumber'),
-                "label_url": info_envio.get('label') # Este es el link al PDF para imprimir
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Envia.com rechazó la generación.", "detalle": res_data}, status=status.HTTP_400_BAD_REQUEST)
-
-    except Exception as e:
-        return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-
-class TarifaLocalViewSet(viewsets.ModelViewSet):
-    queryset = TarifaLocal.objects.all().order_by('localidad')
-    serializer_class = TarifaLocalSerializer
-
+    return Response({"opciones": opciones}, status=200)
 def api_estadisticas(request):
-    total_pedidos = Pedido.objects.count()
-
-    pedidos_exitosos = Pedido.objects.filter(estado__in=['Aprobado', 'Despachado', 'APROBADO', 'ENVIADO']).order_by('-id')
+    # 1. Filtramos solo los pedidos consolidados (ventas reales)
+    pedidos_exitosos = Pedido.objects.filter(estado__in=['Aprobado', 'Despachado', 'APROBADO', 'ENVIADO'])
+    
+    # 2. Ingresos Totales Históricos
     ingresos_totales = pedidos_exitosos.aggregate(Sum('total'))['total__sum'] or 0.00
     
-    qs_pendientes = Pedido.objects.filter(estado__in=['Pendiente', 'Esperando_Transferencia', 'PENDIENTE']).order_by('-id')
-    qs_cancelados = Pedido.objects.filter(estado__in=['Cancelado', 'CANCELADO']).order_by('-id')
+    # 3. Separación Local vs Web (usando el email que definiste en tu view)
+    ventas_locales_qs = pedidos_exitosos.filter(email_cliente="local@telasapp.com")
+    ventas_web_qs = pedidos_exitosos.exclude(email_cliente="local@telasapp.com")
+    
+    ventas_locales_count = ventas_locales_qs.count()
+    ventas_web_count = ventas_web_qs.count()
 
-    # Función rápida para convertir los pedidos en una lista que React entienda
-    # OJO: Si tu modelo no tiene el campo 'total' o 'id', cambialo por el nombre real acá
-    # Función mejorada para extraer toda la info del pedido
-    def armar_lista(queryset):
-        lista = []
-        for p in queryset:
-            # 1. Fecha (Tu modelo usa fecha_creacion)
-            fecha_str = p.fecha_creacion.strftime("%d/%m/%Y") if p.fecha_creacion else ""
+    # 4. Construcción del Historial de los últimos 12 meses
+    fecha_actual = now()
+    meses_historial = []
+    nombres_meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    
+    for i in range(11, -1, -1):
+        m = fecha_actual.month - i
+        y = fecha_actual.year
+        while m <= 0:
+            m += 12
+            y -= 1
+            
+        pedidos_mes = pedidos_exitosos.filter(fecha_creacion__year=y, fecha_creacion__month=m)
+        total_mes = pedidos_mes.aggregate(Sum('total'))['total__sum'] or 0
+        ventas_mes = pedidos_mes.count()
+        
+        meses_historial.append({
+            "id_mes": f"{y}-{m:02d}", # Ej: "2026-06"
+            "mes_label": f"{nombres_meses[m-1]} {y}", # Ej: "Jun 2026"
+            "ingresos": float(total_mes),
+            "ventas": ventas_mes
+        })
 
-            # 2. Detalle de Telas (Usamos related_name='items', nombre_producto y cantidad_metros)
-            telas_detalle = "Sin detalles"
-            if p.items.exists():
-                # Formatea por ejemplo: "Gamuza Roja: 2.00m • Seda Blanca: 1.50m"
-                telas_detalle = " • ".join(
-                    [f"{item.nombre_producto}: {float(item.cantidad_metros):g}m" for item in p.items.all()]
-                )
-
-            # 3. Empaquetamos todo exactamente como React lo espera
-            lista.append({
-                "id": p.id,
-                "fecha": fecha_str,
-                "estado": p.estado,
-                "total": float(p.total) if p.total else 0.0,
-                "email": p.email_cliente,          # <-- Actualizado a tu modelo
-                "telefono": p.telefono_cliente or '-', # <-- Actualizado a tu modelo
-                "metodo_pago": p.metodo_pago,
-                "detalle_telas": telas_detalle
-            })
-        return lista
+    # 5. Consultar Google Analytics 4
+    def obtener_visitas_ga4():
+        try:
+            PROPERTY_ID = os.environ.get("GA4_PROPERTY_ID")
+            if not PROPERTY_ID or "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+                return 0
+            
+            client = BetaAnalyticsDataClient()
+            request = RunReportRequest(
+                property=f"properties/{PROPERTY_ID}",
+                dimensions=[],
+                metrics=[Metric(name="activeUsers")],
+                date_ranges=[DateRange(start_date="30daysAgo", end_date="today")],
+            )
+            response = client.run_report(request)
+            if response.rows:
+                return int(response.rows[0].metric_values[0].value)
+            return 0
+        except Exception as e:
+            print(f"Error GA4: {e}")
+            return 0
 
     data = {
-        "ingresos": float(ingresos_totales),
-        "pedidos": {
-            "total": total_pedidos,
-            "exitosos": pedidos_exitosos.count(),
-            "pendientes": qs_pendientes.count(),
-            "cancelados": qs_cancelados.count()
-        },
-        # 👇 NUEVO BLOQUE: Mandamos las listas de datos 👇
-        "detalles": {
-            "ingresos": armar_lista(pedidos_exitosos), # Ingresos y Ventas cerradas muestran lo mismo
-            "exitosos": armar_lista(pedidos_exitosos),
-            "pendientes": armar_lista(qs_pendientes),
-            "cancelados": armar_lista(qs_cancelados)
+        "ingresos_totales": float(ingresos_totales),
+        "historial_12_meses": meses_historial,
+        "mes_actual": meses_historial[-1], # El último de la lista es el mes en curso
+        "origen_ventas": [
+            {"name": "Local", "value": ventas_locales_count},
+            {"name": "Web", "value": ventas_web_count}
+        ],
+        "analytics": {
+            "visitas_30_dias": obtener_visitas_ga4()
         }
     }
+    
     return JsonResponse(data)
+
 
 @csrf_exempt  # Para evitar problemas de bloqueo de seguridad desde React
 def eliminar_pedido_api(request, pedido_id):
@@ -778,3 +792,297 @@ def eliminar_pedido_api(request, pedido_id):
         return JsonResponse({"message": "Pedido eliminado correctamente"}, status=200)
     
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
+class ConfirmarPedidoView(APIView):
+    def post(self, request):
+        # ... acá ya tenés tu código donde validás el pago y guardás el pedido ...
+        
+        # Simulamos que ya buscaste el pedido en tu base de datos:
+        pedido = Pedido.objects.get(id=request.data['pedido_id'])
+        pedido.estado = 'Aprobado'
+        pedido.save()
+
+        # 👇 ACÁ EJECUTAMOS EL WHATSAPP 👇
+        # Obtenemos el número del dueño (lo podés traer de un modelo Tienda o de una variable de entorno)
+        import os
+        telefono_del_dueño = os.environ.get("NUMERO_DUENO", "5493544630650") 
+        
+        enviar_notificacion_dueño(pedido, telefono_del_dueño)
+
+        return Response({"mensaje": "Pedido confirmado y alerta de WhatsApp enviada al dueño."})
+    
+# ventas en local
+
+class RegistrarVentaLocalView(APIView):
+    # 🔒 Opcional: Podés agregar permission_classes = [IsAdminUser] si querés protegerlo
+    
+    def post(self, request):
+        try:
+            producto_id = request.data.get('producto_id')
+            cantidad_metros = Decimal(str(request.data.get('metros', 0)))
+            precio_cobrado = Decimal(str(request.data.get('precio_cobrado', 0)))
+
+            if not producto_id or cantidad_metros <= 0:
+                return Response({"error": "Datos de venta inválidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Usamos un bloque atómico para evitar problemas si venden en simultáneo en la web
+            with transaction.atomic():
+                # select_for_update bloquea la fila temporalmente para asegurar el stock
+                producto = Producto.objects.select_for_update().get(id=producto_id)
+
+                if producto.stock_metros < cantidad_metros:
+                    return Response({
+                        "error": f"Stock insuficiente para {producto.nombre}. Disponible: {producto.stock_metros}m"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # 1. Descontamos el stock físico
+                producto.stock_metros -= cantidad_metros
+                producto.save()
+
+                # 2. Registramos la venta como un Pedido Aprobado para mantener tus estadísticas al día
+                pedido = Pedido.objects.create(
+                    nombre_cliente="Cliente Local",
+                    email_cliente="local@telasapp.com", # Email ficticio obligatorio en tu modelo
+                    telefono_cliente="-",
+                    direccion_envio="Venta directa en Mostrador",
+                    total=precio_cobrado,
+                    metodo_pago="Efectivo/Tarjeta Local",
+                    estado="Aprobado",
+                    tipo_envio="Retiro en Local",
+                    detalle_items=f"• {producto.nombre}: {cantidad_metros} metros (Venta Local)\n"
+                )
+
+                # 3. Guardamos el item histórico
+                PedidoItem.objects.create(
+                    pedido=pedido,
+                    producto=producto,
+                    nombre_producto=producto.nombre,
+                    cantidad_metros=cantidad_metros,
+                    precio_unitario=(precio_cobrado / cantidad_metros) if cantidad_metros > 0 else 0
+                )
+
+            # ✨ Respuesta limpia: Sin llamadas a send_mail ni plantillas de WhatsApp
+            return Response({
+                "success": True, 
+                "mensaje": "Venta registrada y stock actualizado con éxito.",
+                "nuevo_stock": float(producto.stock_metros)
+            }, status=status.HTTP_201_CREATED)
+
+        except Producto.DoesNotExist:
+            return Response({"error": "El producto seleccionado no existe."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# =========================================================================
+#  NUEVA FUNCIÓN — Agregala al final de tu views.py
+#  La URL ya está definida: path('envio/sucursales/', views.obtener_sucursales_api, ...)
+# =========================================================================
+
+
+
+# =========================================================================
+#  IMPORTANTE: También revisá tu services_envia.py
+#  La función calcular_costo_envio() tiene que devolver carrier_code
+#  y service_code en cada opción. Si no los devuelve, el payload al
+#  crear el pedido va a mandar 'correoargentino' y 'estandar' por default.
+#
+#  El response esperado de calcular_costo_envio() es algo así:
+#  {
+#    "opciones": [
+#      {
+#        "proveedor": "Correo Argentino",
+#        "servicio": "Estándar a Sucursal",   <-- contiene "sucursal"
+#        "costo": 3200,
+#        "tiempo_entrega": "3-5 días hábiles",
+#        "carrier_code": "correoargentino",    <-- necesario
+#        "service_code": "estandar"            <-- necesario
+#      },
+#      {
+#        "proveedor": "Correo Argentino",
+#        "servicio": "Estándar a Domicilio",   <-- contiene "domicilio"
+#        "costo": 4100,
+#        ...
+#      }
+#    ]
+#  }
+# =========================================================================
+
+class RastrearPedidoView(APIView):
+    def get(self, request, tracking_number):
+        # Llamamos a nuestra función genérica pasándole el tracking como lista
+        resultado = rastrear_envios([tracking_number])
+        
+        if resultado["error"]:
+            return Response({"error": resultado["mensaje"]}, status=status.HTTP_400_BAD_REQUEST)
+            
+        return Response(resultado["data"], status=status.HTTP_200_OK)
+    
+class TarifaLocalViewSet(viewsets.ModelViewSet):
+    queryset = TarifaLocal.objects.all().order_by('localidad')
+    serializer_class = TarifaLocalSerializer
+
+
+
+def calcular_envio(request):
+    cp_cliente = "5800" # Esto vendría del request de tu frontend
+    
+    sucursales_disponibles = buscar_por_cp(cp_cliente)
+    
+    if not sucursales_disponibles:
+        return print("No hay sucursales para este Código Postal.")
+        
+    for sucursal in sucursales_disponibles:
+        print(f"Encontrada: {sucursal['descripcion']} en {sucursal['provincia']}")
+        
+    # Aquí continuás con tu lógica para asignar el precio según la zona...
+
+
+
+
+# services_tarifas.py
+def determinar_zona(codigo_provincia):
+    """
+    Recibe el código de la provincia (ej: 'SF', 'BA') y devuelve la Zona Logística.
+    """
+    prov_limpia = str(codigo_provincia).upper().strip()
+    
+    if prov_limpia in ZONAS_LOGISTICAS['LOCAL']:
+        return 'LOCAL'
+    elif prov_limpia in ZONAS_LOGISTICAS['REGIONAL']:
+        return 'REGIONAL'
+    elif prov_limpia in ZONAS_LOGISTICAS['NACIONAL_2']:
+        return 'NACIONAL_2'
+    else:
+        # Todo lo que no sea local, limítrofe o sur profundo, es Nacional 1 (Mendoza, Salta, etc.)
+        return 'NACIONAL_1'
+
+def calcular_precio_envio(codigo_provincia, tipo_entrega):
+    """
+    Busca en la matriz el precio exacto. 
+    tipo_entrega debe ser 'sucursal' o 'domicilio'.
+    """
+    # 1. Averiguamos la zona
+    zona = determinar_zona(codigo_provincia)
+    
+    # 2. Buscamos los precios de esa zona (Si falla, cobramos la más cara por seguridad)
+    precios_zona = TARIFARIO.get(zona, TARIFARIO['NACIONAL_2'])
+    
+    # 3. Retornamos el costo según sea sucursal o domicilio
+    return precios_zona.get(tipo_entrega, precios_zona['domicilio'])
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Dejamos que MP entre sin pedirle token previo
+def mercadopago_callback(request):
+    # 1. Atrapamos el código y el ID de la tienda (que mandaremos desde React)
+    codigo_autorizacion = request.GET.get('code')
+    tienda_id = request.GET.get('state') 
+
+    # URL final a donde mandamos al cliente cuando termina todo el proceso
+    URL_FRONTEND = 'https://www.modaytelas.com.ar/dashboard/inicio' 
+
+    if not codigo_autorizacion:
+        return redirect(f"{URL_FRONTEND}?error=auth_failed")
+
+    # 2. Le pedimos el Token definitivo a Mercado Pago
+    url_token = "https://api.mercadopago.com/oauth/token"
+    
+    data = {
+        "client_secret": settings.MP_CLIENT_SECRET,
+        "client_id": settings.MP_APP_ID,
+        "grant_type": "authorization_code",
+        "code": codigo_autorizacion,
+        # ESTA URL TIENE QUE SER EXACTAMENTE LA MISMA QUE PUSIMOS EN MP
+        "redirect_uri": "https://ignaciozurbriggen.pythonanywhere.com/api/mercadopago/callback/"
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "accept": "application/json"
+    }
+
+    response = requests.post(url_token, data=data, headers=headers)
+    mp_data = response.json()
+
+    # 3. Si todo salió bien, guardamos en la base de datos
+    if response.status_code == 200:
+        try:
+            tienda = StoreConfiguration.objects.get(id=tienda_id)
+            tienda.mp_access_token = mp_data.get('access_token')
+            tienda.mp_refresh_token = mp_data.get('refresh_token')
+            tienda.mp_user_id = mp_data.get('user_id')
+            tienda.save()
+            
+            # ¡Éxito! Redirigimos al cliente a su panel
+            return redirect(f"{URL_FRONTEND}?success=mp_vinculado")
+        except StoreConfiguration.DoesNotExist:
+            return redirect(f"{URL_FRONTEND}?error=tienda_no_encontrada")
+    else:
+        # Si MP rechaza el código, lo mandamos de vuelta con error
+        print("Error de Mercado Pago:", mp_data) # Ideal para mirar en la terminal si algo falla
+        return redirect(f"{URL_FRONTEND}?error=token_failed")
+    
+
+@api_view(['GET'])
+def api_dashboard_inicio(request):
+    hoy = timezone.now().date()
+    
+    # 1. ESTADÍSTICAS SUPERIORES
+    total_productos = Producto.objects.count()
+    pedidos_pendientes_count = Pedido.objects.filter(
+        estado__in=['Pendiente', 'PENDIENTE', 'Esperando_Transferencia']
+    ).count()
+    
+    pedidos_exitosos = Pedido.objects.filter(
+        estado__in=['Aprobado', 'APROBADO', 'Despachado', 'Enviado', 'ENVIADO']
+    )
+    
+    # Ventas totales del mes
+    pedidos_este_mes = pedidos_exitosos.filter(fecha_creacion__year=hoy.year, fecha_creacion__month=hoy.month)
+    ventas_totales_mes = pedidos_este_mes.aggregate(Sum('total'))['total__sum'] or 0.00
+
+    # 2. DATOS PARA EL GRÁFICO
+    ventas_por_dia = []
+    for d in range(1, hoy.day + 1):
+        pedidos_del_dia = pedidos_exitosos.filter(
+            fecha_creacion__year=hoy.year,
+            fecha_creacion__month=hoy.month,
+            fecha_creacion__day=d
+        )
+        total_dia = pedidos_del_dia.aggregate(Sum('total'))['total__sum'] or 0.00
+        
+        ventas_por_dia.append({
+            "fecha": f"{d:02d}/{hoy.month:02d}",
+            "total": float(total_dia)
+        })
+
+    # 3. PEDIDOS A DESPACHAR (Solo Aprobados listos para armar)
+    pedidos_a_despachar = Pedido.objects.filter(
+        estado__in=['Aprobado', 'APROBADO']
+    ).order_by('-fecha_creacion')[:5]
+    
+    a_despachar_lista = [{
+        "cliente": p.nombre_cliente,
+        "fecha": p.fecha_creacion.strftime("%d %b"),
+        "envio": p.tipo_envio if p.tipo_envio else "Retiro / Envío", # Para mostrar cómo entregarlo
+        "total": float(p.total)
+    } for p in pedidos_a_despachar]
+
+    # 4. PRODUCTOS CON STOCK BAJO
+    stock_bajo = Producto.objects.filter(stock_metros__lt=10).order_by('stock_metros')[:4]
+    stock_bajo_lista = [{
+        "id": p.id,
+        "nombre": p.nombre,
+        "stock": float(p.stock_metros),
+        "precio": float(p.precio_por_metro) if p.precio_por_metro else 0 
+    } for p in stock_bajo]
+
+    return Response({
+        "stats": {
+            "productos": total_productos,
+            "pedidos_pendientes": pedidos_pendientes_count,
+            "ventas_totales": float(ventas_totales_mes),
+        },
+        "grafico": ventas_por_dia,
+        "a_despachar": a_despachar_lista, # Cambiamos el nombre de la variable
+        "stock_bajo": stock_bajo_lista
+    })

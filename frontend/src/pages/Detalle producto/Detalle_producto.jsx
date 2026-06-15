@@ -187,10 +187,7 @@ const DetalleProducto = () => {
                                     <Ruler size={18} />
                                     <span>Ancho de fábrica: <strong>{producto.ancho_cm} cm</strong></span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: Number(producto.stock_metros) <= 2 ? '#ef4444' : '#10b981' }}>
-                                    <Layers size={18} />
-                                    <span>Stock disponible: <strong>{producto.stock_metros} metros</strong></span>
-                                </div>
+                                
                             </div>
                             
                             <div className="detalle-descripcion">

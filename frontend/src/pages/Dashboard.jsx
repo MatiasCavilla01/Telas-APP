@@ -23,7 +23,7 @@ const Dashboard = () => {
           // Filtramos transferencias pendientes de validación
           const transferencias = data.filter(p => p.estado === 'Esperando_Transferencia').length;
           
-          // Filtramos pedidos que ya entraron y hay que armar (Ajustá estos estados según tu backend)
+          // Filtramos pedidos que ya entraron y hay que armar
           const pedidosNuevos = data.filter(p => p.estado === 'Pagado' || p.estado === 'Pendiente').length;
 
           setTransferenciasCount(transferencias);
@@ -89,32 +89,39 @@ const Dashboard = () => {
   return (
     <div className="dashboard-root" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', width: '100vw', marginLeft: 'calc(-50vw + 50%)', margin: 0, padding: 0, top: 0, left: 0, background: '#f8fafc', position: 'relative', fontFamily: "'DM Sans', sans-serif" }}>
       
-      {/* HEADER MÓVIL */}
+      {/* 🌟 BOTÓN MENÚ FLOTANTE MÓVIL (Reemplaza a la barra superior oscura) 🌟 */}
       {isMobile && (
-        <header style={{
-          display: 'flex', alignItems: 'center', padding: '0 16px', height: '64px',
-          background: '#0f172a', color: 'white', position: 'sticky', top: 0, zIndex: 30,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)', flexShrink: 0, margin: 0
-        }}>
-          <button 
-            onClick={() => setMenuAbierto(true)}
-            style={{ background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <Icon d={icons.menu} size={24} color="white" strokeWidth="2" />
-            {/* Opcional: un mini puntito rojo en la hamburguesa si hay notificaciones sin leer */}
-            {(transferenciasCount > 0 || pedidosNuevosCount > 0) && (
-              <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%', position: 'absolute', top: 8, left: 24 }} />
-            )}
-          </button>
-          <span style={{ fontWeight: 800, fontSize: '18px', marginLeft: '12px', letterSpacing: '-0.5px' }}>
-            Telas-APP
-          </span>
-        </header>
+        <button 
+          onClick={() => setMenuAbierto(true)}
+          style={{ 
+            position: 'fixed', 
+            top: '16px', 
+            left: '16px', 
+            zIndex: 40,
+            background: 'rgba(255, 255, 255, 0.8)', 
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(0, 0, 0, 0.05)', 
+            borderRadius: '12px',
+            padding: '10px', 
+            cursor: 'pointer', 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+          }}
+        >
+          <Icon d={icons.menu} size={24} color="#0f172a" strokeWidth="2" />
+          {/* Puntito rojo de notificación en el botón flotante */}
+          {(transferenciasCount > 0 || pedidosNuevosCount > 0) && (
+            <span style={{ width: 10, height: 10, background: '#ef4444', border: '2px solid white', borderRadius: '50%', position: 'absolute', top: -2, right: -2 }} />
+          )}
+        </button>
       )}
 
       {/* OVERLAY OSCURO */}
       {isMobile && menuAbierto && (
-        <div onClick={() => setMenuAbierto(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 }} />
+        <div onClick={() => setMenuAbierto(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(2px)', zIndex: 45 }} />
       )}
 
       {/* PANEL LATERAL (SIDEBAR) */}
@@ -123,6 +130,7 @@ const Dashboard = () => {
         position: isMobile ? 'fixed' : 'sticky',
         top: 0, left: 0, height: '100vh', zIndex: 50, margin: 0, padding: 0, transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         transform: isMobile && !menuAbierto ? 'translateX(-100%)' : 'translateX(0)',
+        boxShadow: isMobile ? '4px 0 24px rgba(0,0,0,0.2)' : 'none'
       }}>
         {!isMobile && (
           <div style={{ padding: '32px 24px 24px' }}>
@@ -132,10 +140,13 @@ const Dashboard = () => {
         )}
 
         {isMobile && (
-            <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', marginBottom: 16 }}>
-                 <span style={{ fontSize: '18px', fontWeight: 800 }}>Menú</span>
-                 <button onClick={() => setMenuAbierto(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                     <Icon d={icons.x} size={24} color="#94a3b8" />
+            <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 16 }}>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                     <span style={{ width: 8, height: 8, background: '#ef4444', borderRadius: '50%' }} />
+                     <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.5px' }}>Telas-APP</span>
+                 </div>
+                 <button onClick={() => setMenuAbierto(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex' }}>
+                     <Icon d={icons.x} size={20} color="#94a3b8" />
                  </button>
             </div>
         )}
@@ -147,6 +158,9 @@ const Dashboard = () => {
           </button>
           
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', margin: '24px 0 8px 16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Gestión</div>
+          <button style={getLinkStyle('/dashboard/ventas-local')} onClick={() => navigate('/dashboard/venta-local')}>
+            <Icon d={icons.orders} size={18} color={isActive('/dashboard/ventas-local') || isActive('/dashboard/venta-local') ? '#6366f1' : '#94a3b8'} /> Ventas en Local
+          </button>
           <button style={getLinkStyle('/dashboard/productos')} onClick={() => navigate('/dashboard/productos')}>
             <Icon d={icons.package} size={18} color={isActive('/dashboard/productos') ? '#6366f1' : '#94a3b8'} /> Productos & Stock
           </button>
@@ -160,7 +174,6 @@ const Dashboard = () => {
             <Icon d={icons.design} size={18} color={isActive('/dashboard/diseno') ? '#6366f1' : '#94a3b8'} /> Diseño & Colores
           </button>
           
-          {/* 👇 ACÁ ESTÁN LAS BURBUJAS DE NOTIFICACIÓN APLICADAS 👇 */}
           <button style={getLinkStyle('/dashboard/pedidos')} onClick={() => navigate('/dashboard/pedidos')}>
             <Icon d={icons.orders} size={18} color={isActive('/dashboard/pedidos') ? '#6366f1' : '#94a3b8'} /> Ventas & Pedidos
             <Badge count={pedidosNuevosCount} />
@@ -169,18 +182,29 @@ const Dashboard = () => {
             <Icon d={icons.orders} size={18} color={isActive('/dashboard/transferencias') ? '#6366f1' : '#94a3b8'} /> Transferencias
             <Badge count={transferenciasCount} />
           </button>
-          {/* -------------------------------------------------------- */}
 
           <button style={getLinkStyle('/dashboard/puntos-entrega')} onClick={() => navigate('/dashboard/puntos-entrega')}>
             <Icon d={icons.package} size={18} color={isActive('/dashboard/puntos-entrega') ? '#6366f1' : '#94a3b8'} /> Puntos de Entrega
+          </button>
+
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', margin: '24px 0 8px 16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Ajustes</div>
+          <button style={getLinkStyle('/dashboard/configuracion')} onClick={() => navigate('/dashboard/configuracion')}>
+            {/* Si no tienes un ícono de engranaje en tu archivo icons, puedes usar la librería de lucide-react agregando import { Settings } from 'lucide-react' arriba */}
+            <Icon d={icons.design} size={18} color={isActive('/dashboard/configuracion') ? '#6366f1' : '#94a3b8'} /> Configuración General
           </button>
           
         </nav>
       </aside>
 
+      {/* 🌟 CONTENEDOR PRINCIPAL (MAIN) 🌟 */}
+      {/* Se agrega un padding-top extra en móviles (64px) para que el botón flotante no pise tu contenido */}
       <main style={{
-        flex: 1, padding: isMobile ? '24px 16px' : '20px 40px',
-        maxWidth: '100vw', boxSizing: 'border-box', overflowX: 'hidden', margin: 0
+        flex: 1, 
+        padding: isMobile ? '64px 16px 24px' : '20px 40px',
+        maxWidth: '100vw', 
+        boxSizing: 'border-box', 
+        overflowX: 'hidden', 
+        margin: 0
       }}>
         <Outlet /> 
       </main>

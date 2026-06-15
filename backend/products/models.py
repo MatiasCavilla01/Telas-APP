@@ -37,6 +37,17 @@ def optimize_store_images(sender, instance, **kwargs):
     if instance.imagen_secundaria_1: instance.imagen_secundaria_1 = optimize_image(instance.imagen_secundaria_1, max_width=1200, max_height=1200, quality=85)
     if instance.imagen_secundaria_2: instance.imagen_secundaria_2 = optimize_image(instance.imagen_secundaria_2, max_width=1200, max_height=1200, quality=85)
 
+class UsoTela(models.Model):
+    nombre = models.CharField(max_length=100, unique=True, verbose_name="Nombre del Uso (Ej: Eventos, Pantalones)")
+    
+    class Meta:
+        verbose_name = "Uso de Tela"
+        verbose_name_plural = "Usos de Telas"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
 class StoreConfiguration(models.Model):
     title = models.CharField(max_length=100, default="Bienvenido a Telas-APP")
     
@@ -70,6 +81,12 @@ class StoreConfiguration(models.Model):
     # --- Textos y Contacto ---
     instagram = models.CharField(max_length=100, blank=True, null=True, verbose_name="Usuario de Instagram")
     telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono del Cliente")
+    correo_contacto = models.EmailField(blank=True, null=True, verbose_name="Correo de Contacto")
+    alias_bancario = models.CharField(max_length=100, blank=True, null=True, verbose_name="Alias Bancario para Transferencias")
+
+    mp_access_token = models.CharField(max_length=255, blank=True, null=True)
+    mp_refresh_token = models.CharField(max_length=255, blank=True, null=True)
+    mp_user_id = models.CharField(max_length=100, blank=True, null=True)
 
     is_active = models.BooleanField(default=True)
 
@@ -124,6 +141,13 @@ class Producto(models.Model):
     es_favorito = models.BooleanField(default=False, verbose_name="Tela Favorita/Destacada")
 
     color = models.ForeignKey(Color, on_delete=models.SET_NULL, null=True, blank=True, related_name='productos', verbose_name="Color Principal")
+
+    usos = models.ManyToManyField(
+        UsoTela,
+        related_name='telas',
+        blank=True,
+        verbose_name="Telas para..."
+    )
     
     precio_por_metro = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio por Metro")
     ancho_cm = models.PositiveIntegerField(verbose_name="Ancho (cm)", help_text="Ejemplo: 150, 180, 300")
@@ -169,7 +193,6 @@ class PagoProcesado(models.Model):
         return self.pago_id
     
 # models.py (Actualizaciones sugeridas)
-
 class Pedido(models.Model):
     ESTADOS = (
         ('Pendiente', 'Pendiente de Pago (MP)'),
@@ -177,6 +200,7 @@ class Pedido(models.Model):
         ('Aprobado', 'Pago Aprobado'),
         ('Cancelado', 'Cancelado / Expirado'),
         ('Despachado', 'Pedido Despachado'),
+        ('Enviado', 'Pedido Enviado'), # Agregado por las dudas si lo usas en Envia
     )
     
     # Identificadores
@@ -187,14 +211,22 @@ class Pedido(models.Model):
     email_cliente = models.EmailField()
     telefono_cliente = models.CharField(max_length=20, null=True, blank=True)
 
-    # 👇 NUEVOS: Campos técnicos ocultos para la API de Envia.com
+    # Campos técnicos ocultos para la API de Envia.com
     envia_carrier = models.CharField(max_length=100, blank=True, null=True) # Ej: "correoargentino"
     envia_service = models.CharField(max_length=100, blank=True, null=True) # Ej: "estandar"
 
-    # 👇 NUEVO CAMPO: Guardará la dirección o si retira en el local
+    # Dirección original combinada
     direccion_envio = models.CharField(max_length=255, null=True, blank=True, verbose_name="Método/Dirección de Envío")
+    
+    # 👇 NUEVOS CAMPOS: Desglose de dirección para las etiquetas de Envia.com 👇
+    ciudad = models.CharField(max_length=100, blank=True, null=True)
+    provincia = models.CharField(max_length=100, blank=True, null=True)
+    codigo_postal = models.CharField(max_length=20, blank=True, null=True)
+    calle = models.CharField(max_length=150, blank=True, null=True)
+    numero = models.CharField(max_length=20, blank=True, null=True)
+    # 👆 FIN CAMPOS NUEVOS 👆
 
-    # 👇 Agregamos estos dos campos para tener el desglose claro
+    # Desglose de envíos
     costo_envio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Costo de Envío Cobrado")
     tipo_envio = models.CharField(max_length=255, blank=True, null=True, verbose_name="Tipo de Envío (Local/Envia.com)")
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
@@ -224,4 +256,3 @@ class PedidoItem(models.Model):
 
     def __str__(self):
         return f"{self.cantidad_metros}m de {self.nombre_producto} (Pedido #{self.pedido.id})"
-    

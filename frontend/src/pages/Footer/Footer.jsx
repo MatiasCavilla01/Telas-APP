@@ -5,14 +5,22 @@ import './Footer.css';
 
 const Footer = () => {
     const [logoUrl, setLogoUrl] = useState(null);
+    const [logoDevUrl, setLogoDevUrl] = useState(null);
 
-    // Buscamos el logo desde la API (igual que en el Home)
+    // Buscamos los logos desde la API
     useEffect(() => {
         const fetchLogo = async () => {
             try {
                 const res = await axios.get(import.meta.env.VITE_API_URL + '/api/banner/');
-                if (res.data && res.data.logo) {
-                    setLogoUrl(res.data.logo);
+                
+                // Corregido: Verificamos que haya data y guardamos ambos logos
+                if (res.data) {
+                    if (res.data.logo) {
+                        setLogoUrl(res.data.logo);
+                    }
+                    if (res.data.logo_desarrollador) {
+                        setLogoDevUrl(res.data.logo_desarrollador);
+                    }
                 }
             } catch (error) {
                 console.error('Error cargando el logo en el footer:', error);
@@ -44,8 +52,7 @@ const Footer = () => {
                     <ul>
                         <li><a href="/">Inicio</a></li>
                         <li><a href="/productos">Productos</a></li>
-                    
-                        <li><a href="/contacto">Contacto</a></li>
+                        
                     </ul>
                 </div>
 
@@ -68,12 +75,11 @@ const Footer = () => {
                     </ul>
                 </div>
 
-                {/* Columna 4: Redes Sociales */}
+                {/* Columna 4: Redes Sociales y Logo Dev */}
                 <div className="footer-social">
                     <h3>Seguinos</h3>
-                    <div className="social-icons">
+                    <div className="social-icons" style={{ marginBottom: '20px' }}>
                         <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">
-                            {/* Reemplazamos el componente de Lucide por el SVG nativo */}
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                 <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                                 <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
@@ -81,13 +87,27 @@ const Footer = () => {
                             </svg>
                         </a>
                     </div>
+                    
+                    {/* Renderizado del logo del desarrollador, ahora correctamente ubicado */}
+                    {logoDevUrl && (
+                        <div className="footer-dev-logo">
+                            <a 
+                                href="https://www.instagram.com/tiendaia_arg" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{ display: 'inline-block' }}
+                            >
+                                <img src={logoDevUrl} alt="Desarrollado por TiendaIA" />
+                            </a>
+                        </div>
+                    )}
                 </div>
 
             </div>
 
             {/* Línea divisoria y Copyright */}
             <div className="footer-bottom">
-                <p>&copy; {new Date().getFullYear()} Ale Armando. Todos los derechos reservados.</p>
+                <p>&copy; {new Date().getFullYear()} TiendaIA. Todos los derechos reservados.</p>
             </div>
         </footer>
     );

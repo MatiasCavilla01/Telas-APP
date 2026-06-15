@@ -13,8 +13,9 @@ import VistaStats from './pages/dashboard/VistaStats';
 import VistaPedidos from './pages/dashboard/VistaPedidos';
 import VistaTransferencias from './pages/dashboard/VistaTransferencias';
 import VistaPuntosEntrega from './pages/dashboard/VistaPuntosEntrega';
+import VentasLocal from './pages/dashboard/VentasLocal'; 
+import VistaConfiguracion from './pages/dashboard/VistaConfiguracion';
 
-// Importamos las páginas públicas
 import Home from './pages/Home/Home.jsx';
 import Carrito from './pages/Carrito/Carrito.jsx';
 import DetalleProducto from './pages/Detalle producto/Detalle_producto.jsx';
@@ -23,6 +24,7 @@ import Success from './pages/Success/Success.jsx';
 import TransferenciaSuccess from './pages/TransferenciaSuccess'; 
 import Productos from './pages/Products/Products.jsx';
 import Footer from './pages/Footer/Footer.jsx';
+import Rastreo from './pages/Rastreo';
 
 // 👇 1. IMPORTAMOS EL NUEVO COMPONENTE ACÁ 👇
 import WhatsAppFlotante from './components/WhatsAppFlotante'; 
@@ -66,8 +68,10 @@ function App() {
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/carrito" element={<Carrito />} />
+         
           <Route path="/producto/:id" element={<DetalleProducto />} />
           <Route path="/productos" element={<Productos />} />
+            <Route path="/rastreo" element={<Rastreo />} /> {/* Nueva ruta para rastreo */}
           
           {/* RUTAS DE PAGO */}
           <Route path="/checkout" element={<CheckoutSelection />} />
@@ -86,6 +90,8 @@ function App() {
           <Route path="pedidos" element={<VistaPedidos />} />
           <Route path="transferencias" element={<VistaTransferencias />} />
           <Route path="puntos-entrega" element={<VistaPuntosEntrega />} />
+          <Route path="venta-local" element={<VentasLocal />} />
+          <Route path="configuracion" element={<VistaConfiguracion />} />
         </Route>
 
       </Routes>
