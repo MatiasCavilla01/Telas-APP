@@ -81,6 +81,8 @@ class StoreConfiguration(models.Model):
     # --- Textos y Contacto ---
     instagram = models.CharField(max_length=100, blank=True, null=True, verbose_name="Usuario de Instagram")
     telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono del Cliente")
+    correo_contacto = models.EmailField(blank=True, null=True, verbose_name="Correo de Contacto")
+    alias_bancario = models.CharField(max_length=100, blank=True, null=True, verbose_name="Alias Bancario para Transferencias")
 
     mp_access_token = models.CharField(max_length=255, blank=True, null=True)
     mp_refresh_token = models.CharField(max_length=255, blank=True, null=True)

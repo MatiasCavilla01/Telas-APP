@@ -14,6 +14,7 @@ import VistaPedidos from './pages/dashboard/VistaPedidos';
 import VistaTransferencias from './pages/dashboard/VistaTransferencias';
 import VistaPuntosEntrega from './pages/dashboard/VistaPuntosEntrega';
 import VentasLocal from './pages/dashboard/VentasLocal'; 
+import VistaConfiguracion from './pages/dashboard/VistaConfiguracion';
 
 import Home from './pages/Home/Home.jsx';
 import Carrito from './pages/Carrito/Carrito.jsx';
@@ -90,6 +91,7 @@ function App() {
           <Route path="transferencias" element={<VistaTransferencias />} />
           <Route path="puntos-entrega" element={<VistaPuntosEntrega />} />
           <Route path="venta-local" element={<VentasLocal />} />
+          <Route path="configuracion" element={<VistaConfiguracion />} />
         </Route>
 
       </Routes>

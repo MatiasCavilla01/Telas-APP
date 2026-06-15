@@ -354,16 +354,22 @@ class CrearPedidoView(APIView):
                 pedido.save()
 
             # --- BIFURCACIÓN DE NOTIFICACIONES SEGÚN EL PAGO ---
+
+
+            config = StoreConfiguration.objects.filter(is_active=True).first()
+            correo_dueño = config.correo_contacto if config and config.correo_contacto else 'registrar correo en configuración'
+            alias_banco = config.alias_bancario if config and config.alias_bancario else '--'
+
             if metodo_pago == 'Transferencia':
                 try:
                     # 1. Mail descriptivo al cliente con CBU
-                    asunto_cliente = "Tu pedido está reservado 🧵✨ - Detalles de Transferencia"
+                    asunto_cliente = "Tu pedido está reservado ✨ - Detalles de Transferencia"
                     mensaje_cliente = (
-                        f"¡Hola {pedido.nombre_cliente}!\n\nHemos registrado tu pedido #{pedido.id} correctamente.\n"
-                        f"Hemos reservado tus telas por un plazo de 24 horas. Para completar la compra, realiza la transferencia:\n\n"
+                        f"¡Hola {pedido.nombre_cliente}!\n\nHemos registrado tu pedido correctamente.\n"
+                        f"Hemos reservado tus pedido por un plazo de 24 horas. Para completar la compra, realiza la transferencia y envianos el comprobante para acelerar su despacho...:\n\n"
                         f"💰 Total a transferir: ${pedido.total}\n"
                         f"🏦 CBU: O123456789012345678901\n"
-                        f"📌 Alias: TELAS.APP.CBA\n"
+                        f"📌 Alias: {alias_banco}\n"
                         f"👤 Titular: Ignacio Zurbriggen\n\n"
                         f"📍 Modalidad: {pedido.direccion_envio}\n\n"
                         f"Detalle de tu reserva:\n{pedido.detalle_items}\n"
@@ -373,7 +379,7 @@ class CrearPedidoView(APIView):
                     send_mail(asunto_cliente, mensaje_cliente, settings.DEFAULT_FROM_EMAIL, [pedido.email_cliente], fail_silently=False)
                     
                     # 2. Mail de aviso para ti (el dueño)
-                    asunto_dueno = f"🚨 NUEVO PEDIDO - Transferencia Pendiente (# {pedido.id})"
+                    asunto_dueno = f"TENES UN NUEVO PEDIDO - Transferencia Pendiente (# {pedido.id})"
                     mensaje_dueno = (
                         f"¡Hola! Tienes un nuevo pedido en la web.\n\n"
                         f"👤 Cliente: {pedido.nombre_cliente}\n"
@@ -384,7 +390,7 @@ class CrearPedidoView(APIView):
                         f"📍 Envío/Retiro: {pedido.direccion_envio}\n\n"
                         f"El pedido está a la espera de que el cliente transfiera."
                     )
-                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, ['nachozubri15@gmail.com'], fail_silently=False)
+                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, [correo_dueño], fail_silently=False)
 
                     # 3. Alerta formateada para la plantilla de WhatsApp del dueño
                     datos_plantilla = [
@@ -509,6 +515,9 @@ def webhook_mercadopago(request):
                                 pedido.mp_id = payment_id
                                 pedido.save()
 
+                                config = StoreConfiguration.objects.filter(is_active=True).first()
+                                correo_dueño = config.correo_contacto if config and config.correo_contacto else 'nachozubri15@gmail.com'
+
                                 # Correos informativos automáticos
                                 try:
                                     asunto_cliente = "¡Tu pago fue aprobado! Gracias por elegir Telas APP 🧵✨"
@@ -517,7 +526,7 @@ def webhook_mercadopago(request):
 
                                     asunto_dueno = f"🚀 ¡NUEVA VENTA MP! - ${pedido.total} (Pedido #{pedido.id})"
                                     mensaje_dueno = f"¡Hola! Tienes una nueva venta aprobada vía Mercado Pago.\n\n💰 Monto: ${pedido.total}\n👤 Cliente: {pedido.nombre_cliente}\n📦 Detalle:\n{pedido.detalle_items}"
-                                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, ['nachozubri15@gmail.com'], fail_silently=False)
+                                    send_mail(asunto_dueno, mensaje_dueno, settings.DEFAULT_FROM_EMAIL, [correo_dueño], fail_silently=False)
                                 except Exception as e_mail:
                                     print(f"⚠️ Error al enviar correos: {e_mail}")
 
